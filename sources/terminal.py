@@ -19,8 +19,6 @@ class TerminalInput(QLineEdit):
             'help': 'Affiche ce message d\'aide avec la liste des commandes',
             'clear': 'Nettoie l\'affichage du terminal',
             'exit': 'Ferme le terminal et retourne à la simulation',
-            'quit': 'Ferme le terminal (alias de exit)',
-            'close': 'Ferme le terminal (alias de exit)',
             'troll': 'Affiche un message amusant',
             'kill': "Quitte l\'application"
         }
