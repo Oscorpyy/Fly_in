@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLineEdit
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QColor
 from os import sys
 
@@ -20,7 +20,9 @@ class TerminalInput(QLineEdit):
             'clear': 'Nettoie l\'affichage du terminal',
             'exit': 'Ferme le terminal et retourne à la simulation',
             'troll': 'Affiche un message amusant',
-            'kill': "Quitte l\'application"
+            'kill': "Quitte l\'application",
+            'show path': "Affiche l'animation des drones sur le chemin",
+            'map={name}': "Charge une nouvelle map (ex: map=Challenger_01)"
         }
         self.tab_index = 0
         self.tab_matches = []
@@ -105,6 +107,8 @@ class Terminal(QWidget):
     """
     Terminal en surimpression (overlay) pour afficher et entrer des commandes.
     """
+    command_emitted = pyqtSignal(str) # Émet un signal pour envoyer un ordre à la fenêtre principale
+
     def __init__(self, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setVisible(False)
@@ -186,11 +190,24 @@ class Terminal(QWidget):
                 # On affiche la liste des commandes proprement
                 self.print_line("--- COMMANDES DISPONIBLES ---")
                 for cmd_name, cmd_desc in self.available_commands.items():
-                    self.print_line(f" - {cmd_name.ljust(8)} : {cmd_desc}")
+                    self.print_line(f" - {cmd_name.ljust(10)} : {cmd_desc}")
                 self.print_line("-" * 29)
                 
             elif cmd_lower == 'troll':
                 self.print_line("Encore un troll ? Non, retourne coder !")
+            
+            elif cmd_lower.startswith('map='):
+                map_name = command[4:].strip()
+                if map_name:
+                    self.print_line(f"Chargement de la map '{map_name}'...")
+                    self.command_emitted.emit(f'map={map_name}')
+                    # self.toggle_visibility()
+                else:
+                    self.print_line("Erreur : nom de map manquant. Usage : map=Challenger_01")
+            elif cmd_lower == 'show path':
+                self.print_line("Lancement de l'animation des drones...")
+                self.command_emitted.emit('show path')
+                self.toggle_visibility()
                 
             elif cmd_lower == 'kill':
                 try:
