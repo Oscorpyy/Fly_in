@@ -11,24 +11,30 @@ class GraphWidget(QWidget):
     Widget personnalisé chargé de dessiner le graphe de la simulation
     en fonction des données parsées.
     """
-    # Signal émis quand la souris survole un noeud (envoie le nom du noeud ou une chaîne vide)
     node_hovered = pyqtSignal(str)
 
-    def __init__(self, map_data: Dict[str, Any], parent: QWidget = None) -> None:
+    def __init__(self, map_data: Dict[str, Any],
+                 parent: QWidget = None) -> None:
         super().__init__(parent)
-        self.setMouseTracking(True) # Obligatoire pour détecter la souris sans cliquer !
+        self.setMouseTracking(True)
         self.map_data = map_data
         self.hubs = map_data.get('hubs', {})
         self.connections = map_data.get('connections', [])
-        
+        self.custom_colors: Dict[str, str] = {}
+        self.nb_turns = 0
+        self.turn_label = QLabel(self)
+        self.turn_label.move(15, 15)
+        self.turn_label.setFixedSize(130, 40)
+        self.turn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.print_nb_turns()
+
         # Récupération des chemins (si calculés)
         self.calculated_paths = map_data.get('calculated_paths', {})
 
         # Pour stocker les positions des noeuds à l'écran
-        self._drawn_nodes = {}
+        self._drawn_nodes: Dict[str, QPointF] = {}
         self._last_hovered = ""
 
-        # S'assurer que le widget peint bien son propre fond (nécessaire pour un custom QWidget)
         self.setAutoFillBackground(True)
         palette = self.palette()
         bg_color = Default.BACKGROUND.qcolor()
@@ -36,12 +42,12 @@ class GraphWidget(QWidget):
         self.setPalette(palette)
 
         # Configuration des drones
-        self.drones = []
+        self.drones: list[Dict[str, Any]] = []
         self.drone_size = QSize(50, 50)
-        
+
         # Obtenir le nombre de drones depuis les donnees (sinon 1)
         nb_drones = int(self.map_data.get('nb_drones', 1))
-        
+
         for drone_id in range(nb_drones):
             drone_label = QLabel(self)
             drone_movie = QMovie("assets/drone.gif")
@@ -49,12 +55,13 @@ class GraphWidget(QWidget):
             drone_label.setMovie(drone_movie)
             drone_movie.start()
             # Optionnel: rendre le fond du label transparent
-            drone_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            
+            drone_label.setAttribute(
+                Qt.WidgetAttribute.WA_TranslucentBackground)
+
             # --- ICI on assigne le point de départ du pathfinding ---
             assigned_path = self.calculated_paths.get(drone_id)
             if assigned_path and len(assigned_path) > 0:
-                current_hub = assigned_path[0] # Le drone commence à l'origine (premier élément)
+                current_hub = assigned_path[0]
             else:
                 # Fallback: Trouver le hub de départ si pas de chemin
                 current_hub = None
@@ -65,7 +72,10 @@ class GraphWidget(QWidget):
 
             self.drones.append({
                 'label': drone_label,
-                'current_hub': current_hub
+                'current_hub': current_hub,
+                'step': 0,
+                'progress': 0.0,
+                'wait_turns': drone_id
             })
 
         # Configuration de l'animation
@@ -74,37 +84,246 @@ class GraphWidget(QWidget):
         self.current_step = 0
         self.animation_progress = 0.0
 
+    def update_custom_color(self, zone_type: str, color_val: str) -> None:
+        self.custom_colors[zone_type] = color_val
+
+        # Si on demande à changer le fond de la carte
+        if zone_type.lower() == 'background':
+            palette = self.palette()
+            # On cherche si la couleur existe vraiment dans l'Enum Color
+            bg_color = Color.get_qcolor(color_val, default=Default.BACKGROUND)
+            palette.setColor(self.backgroundRole(), bg_color)
+            self.setPalette(palette)
+
+        self.update()
+
+    def reset_drones(self) -> None:
+        self.current_step = 0
+        self.animation_progress = 0.0
+
+        self.nb_turns = 0
+        self.print_nb_turns()
+        
+        self.custom_colors.clear()
+
+        for drone_id, drone in enumerate(self.drones):
+            drone['step'] = 0
+            drone['progress'] = 0.0
+            drone['wait_turns'] = drone_id
+
+        if hasattr(self, 'animation_timer'):
+            self.animation_timer.stop()
+            try:
+                self.animation_timer.timeout.disconnect()
+            except TypeError:
+                pass
+        self.update()
+
     def start_animation(self) -> None:
         if self.calculated_paths:
-            self.current_step = 0
-            self.animation_progress = 0.0
-            # 16ms pour environ 60 FPS (mouvement fluide)
-            self.animation_timer.start(16) 
-
-    def update_drone_positions(self) -> None:
-        # Avance la progression (16ms sur un objectif de 500ms par étape)
-        self.animation_progress += 16.0 / 500.0
-        
-        # Quand on atteint 100% du trajet entre deux points
-        if self.animation_progress >= 1.0:
-            self.animation_progress -= 1.0
-            self.current_step += 1
+            self.reset_drones()
             
-        all_done = True
-        
+            if hasattr(self, 'animation_timer'):
+                self.animation_timer.timeout.connect(
+                    self.update_drone_positions)
+                self.animation_timer.start(16)  # ~60 FPS
+
+            self.update()
+
+    def next_turn(self) -> None:
+        self.nb_turns += 1
+        self.print_nb_turns()
+        if not self.calculated_paths:
+            return
+
+        occupied_counts = {}
         for drone_id, drone in enumerate(self.drones):
             assigned_path = self.calculated_paths.get(drone_id)
-            if assigned_path:
-                drone_step = self.current_step - drone_id
+            if not assigned_path:
+                continue
+            step = drone.get('step', -drone_id)
+            if 0 <= step < len(assigned_path) - 1:
+                node_name = assigned_path[step]
+                h_type = self.hubs.get(node_name, {}).get('type')
+                if h_type not in ('start_hub', 'end_hub'):
+                    occupied_counts[node_name] = occupied_counts.get(
+                        node_name, 0) + 1
+
+        for drone_id, drone in enumerate(self.drones):
+            assigned_path = self.calculated_paths.get(drone_id)
+            if not assigned_path:
+                continue
+
+            step = drone.get('step', -drone_id)
+            wait_turns = drone.get('wait_turns', 0)
+
+            if step < 0:
+                if wait_turns > 0:
+                    drone['wait_turns'] -= 1
+                else:
+                    drone['step'] += 1
+            elif step < len(assigned_path) - 1:
+                current_node = assigned_path[step]
+
+                if wait_turns > 0:
+                    drone['wait_turns'] -= 1
+                else:
+                    h_to_name = assigned_path[step + 1]
+                    h_to = self.hubs.get(h_to_name, {})
+                    is_end_hub = h_to.get('type') == 'end_hub'
+
+                    attrs = h_to.get('attributes', {})
+                    max_cap = 1
+                    if 'capacity' in attrs:
+                        try:
+                            max_cap = int(attrs['capacity'])
+                        except ValueError:
+                            pass
+                    elif 'max_drones' in attrs:
+                        try:
+                            max_cap = int(attrs['max_drones'])
+                        except ValueError:
+                            pass
+                            
+                    current_occupancy = occupied_counts.get(h_to_name, 0)
+
+                    if current_occupancy >= max_cap and not is_end_hub:
+                        pass
+                    else:
+                        if occupied_counts.get(current_node, 0) > 0:
+                            occupied_counts[current_node] -= 1
+
+                        if not is_end_hub:
+                            occupied_counts[h_to_name] = occupied_counts.get(h_to_name, 0) + 1
+
+                        step += 1
+                        drone['step'] = step
+
+                        if 'restricted' in attrs or 'restricted' in attrs.values():
+                            drone['wait_turns'] = 1
+                        elif 'priority' in attrs or 'priority' in attrs.values():
+                            drone['wait_turns'] = 0  # 1 tour au total
+                        else:
+                            drone['wait_turns'] = 0
+
+        all_finished = True
+        for drone_id, drone in enumerate(self.drones):
+            assigned_path = self.calculated_paths.get(drone_id)
+            if assigned_path and drone.get('step', 0) < len(assigned_path) - 1:
+                all_finished = False
+                break
                 
-                # S'il y a encore un prochain noeud à atteindre pour ce drone
-                if drone_step < len(assigned_path) - 1:
-                    all_done = False
-                    
-        self.update() # Déclenche un redessin pour déplacer visuellement les drones
+        if all_finished and hasattr(self, 'animation_timer'):
+            self.animation_timer.stop()
+
+        self.update()
+
+    def print_nb_turns(self) -> None:
+        """Met à jour le texte et l'apparence de la popup des tours."""
+        self.turn_label.setText(f"TOURS : {self.nb_turns}")
+
+        # On applique le style (gris transparent + vert radar)
+        self.turn_label.setStyleSheet("""
+            background-color: rgba(30, 30, 30, 200);
+            color: #00FF00;
+            border-radius: 10px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            border: 1px solid rgba(0, 255, 0, 80);
+        """)
+        self.turn_label.show()
+
+    def update_drone_positions(self) -> None:
+        all_done = True
         
+        # SNAPSHOT des occupations AVANT tout déplacement
+        occupied_counts: dict[str, int] = {}
+        for drone_id, drone in enumerate(self.drones):
+            assigned_path = self.calculated_paths.get(drone_id)
+            if not assigned_path:
+                continue
+            step = drone.get('step', 0)
+            progress = drone.get('progress', 0.0)
+            
+            if 0 <= step < len(assigned_path):
+                if progress == 0.0:
+                    node_name = assigned_path[step]
+                    h_type = self.hubs.get(node_name, {}).get('type')
+                    if h_type not in ('start_hub', 'end_hub'):
+                        occupied_counts[node_name] = (
+                            occupied_counts.get(node_name, 0) + 1)
+                elif step < len(assigned_path) - 1:
+                    dest_name = assigned_path[step + 1]
+                    d_type = self.hubs.get(dest_name, {}).get('type')
+                    if d_type not in ('start_hub', 'end_hub'):
+                        occupied_counts[dest_name] = (
+                            occupied_counts.get(dest_name, 0) + 1)
+
+        # Maintenant déplacer chaque drone EN FONCTION du snapshot
+        for drone_id, drone in enumerate(self.drones):
+            assigned_path = self.calculated_paths.get(drone_id)
+            if not assigned_path:
+                continue
+
+            step = drone.get('step', 0)
+            progress = drone.get('progress', 0.0)
+
+            if step < len(assigned_path) - 1:
+                all_done = False
+                
+                # S'il attend son tour pour démarrer
+                if step < 0:
+                    progress += 16.0 / 500.0
+                    if progress >= 1.0:
+                        progress = 0.0
+                        step += 1
+                else:
+                    # En déplacement entre deux noeuds
+                    h_to_name = assigned_path[step + 1]
+                    h_to = self.hubs.get(h_to_name, {})
+                    
+                    weight = 1.0
+                    attrs = h_to.get('attributes', {})
+                    if 'restricted' in attrs or 'restricted' in attrs.values():
+                        weight = 2.0
+                    elif 'priority' in attrs or 'priority' in attrs.values():
+                        weight = 0.5
+                        
+                    duration = 500.0 * weight
+                    max_cap = 1
+                    if 'capacity' in attrs:
+                        try:
+                            max_cap = int(attrs['capacity'])
+                        except ValueError:
+                            pass
+                    elif 'max_drones' in attrs:
+                        try:
+                            max_cap = int(attrs['max_drones'])
+                        except ValueError:
+                            pass
+                    
+                    if progress == 0.0 and h_to_name != assigned_path[-1]:
+                        if occupied_counts.get(h_to_name, 0) >= max_cap:
+                            pass
+                        else:
+                            occupied_counts[h_to_name] = (
+                                occupied_counts.get(h_to_name, 0) + 1)
+                            progress += 16.0 / duration
+                    else:
+                        progress += 16.0 / duration
+                    
+                    if progress >= 1.0:
+                        progress = 0.0
+                        step += 1
+                
+                drone['step'] = step
+                drone['progress'] = progress
+                drone['progress'] = progress
+
+        self.update()
+
         if all_done:
-            self.animation_progress = 0.0
             self.animation_timer.stop()
 
     def paintEvent(self, event) -> None:
@@ -136,7 +355,6 @@ class GraphWidget(QWidget):
         # Garder les proportions (aspect ratio)
         scale = min(scale_x, scale_y)
 
-        # Offsets pour centrer (On utilise l'envergure RÉELLE pour que ce soit calculé parfaitement !!)
         offset_x = margin + (w - actual_range_x * scale) / 2
         offset_y = margin + (h - actual_range_y * scale) / 2
 
@@ -149,7 +367,7 @@ class GraphWidget(QWidget):
         # 3. Dessiner les connexions (lignes) AVANT les points
         pen_conn = QPen(Default.CONNECTION.qcolor(), 3)
         painter.setPen(pen_conn)
-        
+
         for conn in self.connections:
             h1 = self.hubs.get(conn['from'])
             h2 = self.hubs.get(conn['to'])
@@ -162,31 +380,71 @@ class GraphWidget(QWidget):
         node_radius = 25
         for name, hub in self.hubs.items():
             pos = get_screen_pos(hub['x'], hub['y'])
-
-            # -- Détermination de la couleur par défaut selon le type --
-            if hub['type'] == 'start_hub':
-                node_color = Default.ENTRY.qcolor()
+            h_type = hub.get('type', 'hub')
+            attrs = hub.get('attributes', {})
+            
+            z_type = "hub"  # par défaut
+            if 'restricted' in attrs or 'restricted' in attrs.values():
+                z_type = "restricted"
+            elif 'priority' in attrs or 'priority' in attrs.values():
+                z_type = "priority"
+            elif 'blocked' in attrs or 'blocked' in attrs.values():
+                z_type = "blocked"
+            elif h_type == 'start_hub':
+                z_type = "start_hub"
+            elif h_type == 'end_hub':
+                z_type = "end_hub"
+            
+            current_radius = node_radius
+            if z_type in ('start_hub', 'end_hub'):
                 current_radius = node_radius + 5
-            elif hub['type'] == 'end_hub':
-                node_color = Default.EXIT.qcolor()
-                current_radius = node_radius + 5
-            else:
-                node_color = Default.HUB.qcolor()
-                current_radius = node_radius
-
-            # --- Possibilité d'override par les attributs de la map ici ---
-            # Si le hub a une couleur spécifiée, on écrase la couleur par défaut
+                
+            # default colors
+            default_map = {
+                'start_hub': Default.ENTRY,
+                'end_hub': Default.EXIT,
+                'priority': Default.PRIORITY,
+                'restricted': Default.RESTRICTED,
+                'blocked': Default.BLOCKED,
+                'hub': Default.HUB
+            }
+            
+            node_color = default_map.get(z_type, Default.HUB).qcolor()
             is_rainbow = False
+
+            # attribut couleur de la map
             if 'color' in hub['attributes']:
                 color_name = str(hub['attributes']['color']).lower()
                 if color_name == 'rainbow':
                     is_rainbow = True
                 else:
-                    node_color = Color.get_qcolor(color_name, default=Color.GRAY)
+                    node_color = Color.get_qcolor(
+                        color_name, default=Color.GRAY)
+
+            # Custom command override (plus haute priorité)
+            # Accepter 'start' et 'end' au lieu de 'start_hub' et 'end_hub'
+            # pour plus de convivialité
+            term_z_type = z_type
+            if z_type == 'start_hub':
+                term_z_type = 'start'
+            if z_type == 'end_hub':
+                term_z_type = 'end'
+
+            effective_z_type = z_type if z_type in self.custom_colors \
+                else term_z_type
+
+            if effective_z_type in self.custom_colors:
+                custom_color_val = str(
+                    self.custom_colors[effective_z_type]).lower()
+                if custom_color_val == 'rainbow':
+                    is_rainbow = True
+                else:
+                    is_rainbow = False
+                    node_color = Color.get_qcolor(
+                        custom_color_val, default=default_map.get(z_type,
+                                                                  Default.HUB))
 
             if is_rainbow:
-                # Création d'un dégradé conique (QConicalGradient) pour l'effet arc-en-ciel
-                # On utilise les couleurs existantes définies dans constant.py
                 gradient = QConicalGradient(pos, 0)
                 gradient.setColorAt(0.0, Color.RED.qcolor())
                 gradient.setColorAt(0.16, Color.ORANGE.qcolor())
@@ -194,34 +452,37 @@ class GraphWidget(QWidget):
                 gradient.setColorAt(0.5, Color.GREEN.qcolor())
                 gradient.setColorAt(0.66, Color.BLUE.qcolor())
                 gradient.setColorAt(0.83, Color.INDIGO.qcolor())
-                gradient.setColorAt(1.0, Color.RED.qcolor()) # Boucle sur le rouge
+                gradient.setColorAt(1.0, Color.RED.qcolor())
                 painter.setBrush(QBrush(gradient))
             else:
                 painter.setBrush(QBrush(node_color))
 
             painter.setPen(QPen(Qt.GlobalColor.black, 2))
-            
-            # Dessin du cercle
+
             painter.drawEllipse(pos, current_radius, current_radius)
 
-            # On mémorise la position ET la taille sur l'écran pour la détection du hover
             self._drawn_nodes[name] = (pos, current_radius)
 
         # 5. Positionner les drones (avec interpolation)
         for drone_id, drone in enumerate(self.drones):
             assigned_path = self.calculated_paths.get(drone_id)
-            
-            # S'il n'y a pas de chemin assigné au drone, position classique sur le `current_hub`
+
+            # S'il n'y a pas de chemin assigné au drone, position
+            # classique sur le `current_hub`
             if not assigned_path:
                 current_hub = drone.get('current_hub')
                 if current_hub and current_hub in self.hubs:
                     h = self.hubs[current_hub]
                     pos = get_screen_pos(h['x'], h['y'])
-                    drone['label'].move(int(pos.x() - self.drone_size.width() / 2), int(pos.y() - self.drone_size.height() / 2))
+                    drone['label'].move(
+                        int(pos.x() - self.drone_size.width() / 2),
+                        int(pos.y() - self.drone_size.height() / 2))
                 continue
 
-            drone_step = getattr(self, 'current_step', 0) - drone_id
-            progress = getattr(self, 'animation_progress', 0.0)
+            drone_step = drone.get('step',
+                                   getattr(self, 'current_step', 0) - drone_id)
+            progress = drone.get('progress',
+                                 getattr(self, 'animation_progress', 0.0))
 
             if drone_step < 0:
                 h = self.hubs[assigned_path[0]]
@@ -230,13 +491,12 @@ class GraphWidget(QWidget):
                 h = self.hubs[assigned_path[-1]]
                 pos = get_screen_pos(h['x'], h['y'])
             else:
-                # Interpolation douce entre les deux noeuds (progression visuelle)
                 h_from = self.hubs[assigned_path[drone_step]]
                 h_to = self.hubs[assigned_path[drone_step + 1]]
-                
+
                 pos_from = get_screen_pos(h_from['x'], h_from['y'])
                 pos_to = get_screen_pos(h_to['x'], h_to['y'])
-                
+
                 inter_x = pos_from.x() + (pos_to.x() - pos_from.x()) * progress
                 inter_y = pos_from.y() + (pos_to.y() - pos_from.y()) * progress
                 pos = QPointF(inter_x, inter_y)

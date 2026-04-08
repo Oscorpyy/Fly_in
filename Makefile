@@ -2,8 +2,7 @@ VENV = .venv
 PY = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
 
-MAP ?= easy_01
-
+MAP ?=challenger_01
 all: install
 
 install: $(VENV)/bin/activate
@@ -23,14 +22,16 @@ run: install
 	@-$(PY) sources/main.py $(MAP) || true
 
 clean:
-	@echo "Nettoyage des fichiers cache Python..."
-	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@echo "Cleaning up..."
 	@find . -type f -name "*.pyc" -delete
-
-fclean: clean
-	@echo "Suppression de l'environnement virtuel..."
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@find . -type f -name "*.log" -delete
+	@find . -type d -name ".mypy_cache" -exec rm -rf {} +
+	@echo "Removing virtual environment and executable..."
 	@rm -rf $(VENV)
+	@echo "Cleanup complete."
 
-re: fclean all
 
-.PHONY: all install run clean fclean re
+re: clean all
+
+.PHONY: all install run clean re

@@ -85,12 +85,18 @@ class Color(IntEnum):
         except KeyError:
             return default.qcolor()
 
-class Default:
-    DRONE = Color.RED
+
+class Default():
     ENTRY = Color.TEAL
     EXIT = Color.FOREST_GREEN
-    HUB = Color.SKY_BLUE
+    # Zones
+    HUB = Color.BLACK
+    PRIORITY = Color.GOLD
+    RESTRICTED = Color.DARK_ORANGE
+    BLOCKED = Color.BLACK
+    # Contexte
     CONNECTION = Color.BLACK
-    BACKGROUND = Color.DARK_GRAY
-    MENU = Color.GRAY
-    TEXT = Color.GRAY
+    for color in Color:
+        BACKGROUND = color
+    MENU = Color.BLACK
+    TEXT = Color.BLACK

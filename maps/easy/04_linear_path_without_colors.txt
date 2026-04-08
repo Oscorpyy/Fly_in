@@ -4,8 +4,14 @@ nb_drones: 2
 start_hub: start 0 0
 hub: waypoint1 1 0
 hub: waypoint2 2 0
+hub: waypoint3 1 1 [zone=blocked]
+hub: waypoint4 2 1 [zone=priority]
+hub: waypoint5 3 1 [zone=restricted]
 end_hub: goal 3 0
 
 connection: start-waypoint1
 connection: waypoint1-waypoint2
 connection: waypoint2-goal
+
+connection: waypoint3-waypoint4
+connection: waypoint5-waypoint4
