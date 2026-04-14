@@ -1,6 +1,6 @@
 from typing import Dict, Any
 import math
-from PyQt6.QtWidgets import QWidget, QLabel
+from PyQt6.QtWidgets import QWidget, QLabel, QGraphicsColorizeEffect
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QMovie, QConicalGradient
 from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QSize, QTimer
 from constant import Default, Color
@@ -87,29 +87,57 @@ class GraphWidget(QWidget):
     def update_custom_color(self, zone_type: str, color_val: str) -> None:
         self.custom_colors[zone_type] = color_val
 
-        # Si on demande à changer le fond de la carte
         if zone_type.lower() == 'background':
             palette = self.palette()
             # On cherche si la couleur existe vraiment dans l'Enum Color
             bg_color = Color.get_qcolor(color_val, default=Default.BACKGROUND)
             palette.setColor(self.backgroundRole(), bg_color)
             self.setPalette(palette)
+            
+        elif zone_type.lower() == 'drone':
+            drone_color = Color.get_qcolor(color_val, default=Color.GRAY)
+            for drone in self.drones:
+                effect = QGraphicsColorizeEffect()
+                effect.setColor(drone_color)
+                drone['label'].setGraphicsEffect(effect)
+                
+        elif zone_type.lower() == 'turn_text' or zone_type.lower() == 'turn_bg':
+            self.print_nb_turns()
 
         self.update()
+
+    def randomize_colors(self) -> None:
+        import random
+        # Liste de toutes les couleurs valides
+        all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
+        zone_types = ["start", "end", 'hub', 'priority', 'restricted',
+                      'blocked', 'connection', 'background', "drone", "turn_text", "turn_bg"]
+        
+        for z in zone_types:
+            self.update_custom_color(z, random.choice(all_colors))
 
     def reset_drones(self) -> None:
         self.current_step = 0
         self.animation_progress = 0.0
+        self._time_elapsed = 0.0
 
         self.nb_turns = 0
         self.print_nb_turns()
         
         self.custom_colors.clear()
 
+        # Réinitialisation du fond (background)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), Default.BACKGROUND.qcolor())
+        self.setPalette(palette)
+        
+        self.print_nb_turns()
+
         for drone_id, drone in enumerate(self.drones):
             drone['step'] = 0
             drone['progress'] = 0.0
             drone['wait_turns'] = drone_id
+            drone['label'].setGraphicsEffect(None)
 
         if hasattr(self, 'animation_timer'):
             self.animation_timer.stop()
@@ -131,10 +159,21 @@ class GraphWidget(QWidget):
             self.update()
 
     def next_turn(self) -> None:
-        self.nb_turns += 1
-        self.print_nb_turns()
         if not self.calculated_paths:
             return
+            
+        all_finished = True
+        for drone_id, drone in enumerate(self.drones):
+            assigned_path = self.calculated_paths.get(drone_id)
+            if assigned_path and drone.get('step', -drone_id) < len(assigned_path) - 1:
+                all_finished = False
+                break
+                
+        if all_finished:
+            return
+
+        self.nb_turns += 1
+        self.print_nb_turns()
 
         occupied_counts = {}
         for drone_id, drone in enumerate(self.drones):
@@ -222,20 +261,38 @@ class GraphWidget(QWidget):
         """Met à jour le texte et l'apparence de la popup des tours."""
         self.turn_label.setText(f"TOURS : {self.nb_turns}")
 
+        turn_color = "#00FF00" # default
+        if 'turn_text' in self.custom_colors:
+            turn_color = Color.get_qcolor(self.custom_colors['turn_text'], default=Color.LIME).name()
+            
+        turn_bg = "rgba(30, 30, 30, 200)"
+        if 'turn_bg' in self.custom_colors:
+            turn_bg = Color.get_qcolor(self.custom_colors['turn_bg'], default=Color.BLACK).name()
+
         # On applique le style (gris transparent + vert radar)
-        self.turn_label.setStyleSheet("""
-            background-color: rgba(30, 30, 30, 200);
-            color: #00FF00;
+        self.turn_label.setStyleSheet(f"""
+            background-color: {turn_bg};
+            color: {turn_color};
             border-radius: 10px;
             font-weight: bold;
             font-family: 'Courier New', monospace;
             font-size: 16px;
-            border: 1px solid rgba(0, 255, 0, 80);
+            border: 3px solid {turn_bg};
         """)
         self.turn_label.show()
 
     def update_drone_positions(self) -> None:
         all_done = True
+        
+        # Gestion du compteur de tours (1 tour ~ 500ms)
+        if not hasattr(self, '_time_elapsed'):
+            self._time_elapsed = 0.0
+            
+        self._time_elapsed += 16.0
+        if self._time_elapsed >= 500.0:
+            self._time_elapsed -= 500.0
+            self.nb_turns += 1
+            self.print_nb_turns()
         
         # SNAPSHOT des occupations AVANT tout déplacement
         occupied_counts: dict[str, int] = {}
@@ -365,7 +422,12 @@ class GraphWidget(QWidget):
             return QPointF(screen_x, screen_y)
 
         # 3. Dessiner les connexions (lignes) AVANT les points
-        pen_conn = QPen(Default.CONNECTION.qcolor(), 3)
+        conn_color_name = self.custom_colors.get('connection')
+        if conn_color_name:
+            conn_color = Color.get_qcolor(conn_color_name, default=Default.CONNECTION)
+        else:
+            conn_color = Default.CONNECTION.qcolor()
+        pen_conn = QPen(conn_color, 3)
         painter.setPen(pen_conn)
 
         for conn in self.connections:
@@ -457,7 +519,7 @@ class GraphWidget(QWidget):
             else:
                 painter.setBrush(QBrush(node_color))
 
-            painter.setPen(QPen(Qt.GlobalColor.black, 2))
+            painter.setPen(QPen(conn_color, 2))
 
             painter.drawEllipse(pos, current_radius, current_radius)
 

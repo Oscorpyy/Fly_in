@@ -56,8 +56,8 @@ class PathFinder:
             current, path = queue.pop(0)
             if current == end:
                 all_paths.append(path)
-                # On limite pour éviter d'exploser la mémoire sur les très grosses cartes
-                if len(all_paths) > 50:
+                # On augmente la limite pour trouver les chemins plus efficient
+                if len(all_paths) > 200:
                     break
                 continue
 
@@ -98,14 +98,19 @@ class PathFinder:
             for i, path in enumerate(all_paths):
                 base_cost = sum(self.graph.zones[n].weight for n in path)
                 
-                congestion = 0
+                # Le délai causé par le traffic est proche du goulot le plus long
+                bottleneck = 0.0
                 for n in path:
-                    if self.graph.zones[n].z_type not in ('start_hub', 'end_hub'):
-                        congestion += node_usage[n]
+                    z = self.graph.zones[n]
+                    if z.z_type not in ('start_hub', 'end_hub'):
+                        cap = max(1, getattr(z, 'capacity', 1))
+                        # Si le noeud est occupé N fois, l'attente ~ N * temps / cap
+                        delay = (node_usage[n] * z.weight) / cap
+                        if delay > bottleneck:
+                            bottleneck = delay
                         
-                # Pénalité extrêmement stricte dès qu'un noeud est partagé (facteur 5x)
-                congestion_cost = congestion * 5.0
-                score = base_cost + congestion_cost
+                # On estime l'arrivée : temps du chemin + 1 "poids" de la pire file d'attente
+                score = base_cost + bottleneck
                 
                 if score < best_score:
                     best_score = score

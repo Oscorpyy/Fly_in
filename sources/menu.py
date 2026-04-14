@@ -16,6 +16,7 @@ class MenuWidget(QWidget):
         self.map_data = map_data
         self.troll_msg = ""
         self.hovered_node = ""
+        self.custom_colors = {}
 
         # S'assurer que le widget peint bien son propre fond (nécessaire pour un custom QWidget)
         self.setAutoFillBackground(True)
@@ -23,6 +24,31 @@ class MenuWidget(QWidget):
         bg_color = Default.BACKGROUND.qcolor()
         palette.setColor(self.backgroundRole(), bg_color)
         self.setPalette(palette)
+
+    def update_custom_color(self, zone_type: str, color_val: str) -> None:
+        self.custom_colors[zone_type] = color_val
+        
+        if zone_type.lower() == 'menu_bg':
+            palette = self.palette()
+            bg_color = Color.get_qcolor(color_val, default=Default.BACKGROUND)
+            palette.setColor(self.backgroundRole(), bg_color)
+            self.setPalette(palette)
+            
+        self.update()
+
+    def randomize_colors(self) -> None:
+        import random
+        all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
+        for z in ['menu', 'text', 'menu_bg']:
+            self.update_custom_color(z, random.choice(all_colors))
+
+    def reset_colors(self) -> None:
+        self.custom_colors.clear()
+        palette = self.palette()
+        bg_color = Default.BACKGROUND.qcolor()
+        palette.setColor(self.backgroundRole(), bg_color)
+        self.setPalette(palette)
+        self.update()
 
     def paintEvent(self, event) -> None:
         """Méthode appelée automatiquement par Qt pour dessiner le widget."""
@@ -36,9 +62,11 @@ class MenuWidget(QWidget):
         
         # On utilise la couleur par défaut MENU, sauf si la map en précise une
         pen_color = Default.MENU.qcolor()
-        # Si vous avez la couleur dans map_data (par ex dans map_data['menu']['color'])
         if 'menu' in self.map_data and 'color' in self.map_data['menu']:
             pen_color = Color.get_qcolor(self.map_data['menu']['color'], default=Default.MENU)
+
+        if 'menu' in self.custom_colors:
+            pen_color = Color.get_qcolor(self.custom_colors['menu'], default=Default.MENU)
 
         pen = QPen(pen_color, pen_thickness)
         
@@ -65,12 +93,16 @@ class MenuWidget(QWidget):
         left_rect = rect.adjusted(0, 0, -middle_x, 0)
         right_rect = rect.adjusted(middle_x, 0, 0, 0)
 
+        text_color = Default.TEXT.qcolor()
+        if 'text' in self.custom_colors:
+            text_color = Color.get_qcolor(self.custom_colors['text'], default=Default.TEXT)
+            
         # --- DESSIN DU TEXTE TROLL (Côté Gauche) ---
         if self.troll_msg:
             # On configure le texte avec une jolie taille pour bien troller
             font = QFont("Arial", 14, QFont.Weight.Bold)
             painter.setFont(font)
-            painter.setPen(Default.TEXT.qcolor())
+            painter.setPen(text_color)
             
             # On dessine le texte au centre de la zone GAUCHE
             painter.drawText(left_rect, Qt.AlignmentFlag.AlignCenter, self.troll_msg)
@@ -95,6 +127,7 @@ class MenuWidget(QWidget):
                 # Pour les données, une police type 'code/terminal' rend bien
                 info_font = QFont("Consolas", 12)
                 painter.setFont(info_font)
+                painter.setPen(text_color)
                 
                 # On dessine le texte au centre de la zone DROITE
                 painter.drawText(right_rect, Qt.AlignmentFlag.AlignCenter, info_text)

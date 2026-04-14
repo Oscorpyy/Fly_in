@@ -96,7 +96,8 @@ class Default():
     BLOCKED = Color.BLACK
     # Contexte
     CONNECTION = Color.BLACK
-    for color in Color:
-        BACKGROUND = color
+    BACKGROUND = Color.NIGHT_BLUE
     MENU = Color.BLACK
     TEXT = Color.BLACK
+    TERMINAL = Color.GRAY
+

@@ -18,16 +18,22 @@ class TerminalInput(QLineEdit):
         # Liste des commandes pour l'auto-complétion et l'aide
         self.available_commands = {
             'help': 'Affiche ce message d\'aide avec la liste des commandes',
+            'color help': 'Affiche la liste des zones modifiables avec '
+            'la commande color',
             'clear': 'Nettoie l\'affichage du terminal',
             'hide || close': 'Ferme le terminal et retourne à la simulation',
             'troll': 'Affiche un message amusant',
-            'kill || exit': "Quitte l\'application",
+            'kill || exit': "Quitte l'application",
             'show path': "Affiche l'animation des drones sur le chemin",
             'reset drone': "Réinitialise la position des drones",
             'reset': "Réinitialise la position des drones",
             'map={name}': "Charge une nouvelle map (ex: map=Challenger_01)",
-            'color_{zone}={color}': "Modifie la couleur d'une zone"
-            "(ex: color_hub=red)"
+            'color {zone} {color}': "Modifie la couleur d'une zone"
+            "(ex: color hub red)",
+            'random color': "Modifie aléatoirement toutes les "
+            "couleurs du labyrinthe",
+            'random color auto [sec]': "Modifie les couleurs "
+            "aléatoirement (ex: random color auto 5)"
         }
         self.tab_index = 0
         self.tab_matches = []
@@ -167,6 +173,34 @@ class Terminal(QWidget):
                         "Appuie sur 'Échap' pour masquer."
                         "Tape 'help' pour l'aide.")
 
+    def update_custom_color(self, zone_type: str, color_val: str) -> None:
+        from constant import Color
+        color = Color.get_qcolor(color_val, default=Color.GRAY).name()
+        if zone_type == 'terminal_bg':
+            self.output_area.setStyleSheet(f"color: #FFFFFF; background-color: {color}; border: none; font-family: Consolas, monospace; font-size: 14px;")
+            self.input_area.setStyleSheet(f"color: #FFFFFF; background-color: {color}; border: 1px solid gray; font-family: Consolas, monospace; font-size: 14px; padding: 5px;")
+            # update root bg to somewhat match
+            palette = self.palette()
+            palette.setColor(self.backgroundRole(), QColor(color))
+            self.setPalette(palette)
+        elif zone_type == 'terminal_text':
+            self.output_area.setStyleSheet(f"color: {color}; background-color: transparent; border: none; font-family: Consolas, monospace; font-size: 14px;")
+            self.input_area.setStyleSheet(f"color: {color}; background-color: rgba(50, 50, 50, 150); border: 1px solid gray; font-family: Consolas, monospace; font-size: 14px; padding: 5px;")
+
+    def reset_colors(self) -> None:
+        self.output_area.setStyleSheet("color: #FFFFFF; background-color: transparent; border: none; font-family: Consolas, monospace; font-size: 14px;")
+        self.input_area.setStyleSheet("color: #FFFFFF; background-color: rgba(50, 50, 50, 150); border: 1px solid gray; font-family: Consolas, monospace; font-size: 14px; padding: 5px;")
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(0, 0, 0, 200))
+        self.setPalette(palette)
+
+    def randomize_colors(self) -> None:
+        import random
+        from constant import Color
+        all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
+        self.update_custom_color('terminal_bg', random.choice(all_colors))
+        self.update_custom_color('terminal_text', random.choice(all_colors))
+
     def toggle_visibility(self) -> None:
         """Affiche ou masque le terminal (comme sur Minecraft)."""
         if self.isVisible():
@@ -209,50 +243,87 @@ class Terminal(QWidget):
             self.toggle_visibility()
 
         elif cmd_lower == 'clear':
-            # On vide simplement la zone de texte
             self.output_area.clear()
             self.print_line("Console nettoyée.")
 
         elif cmd_lower == 'help':
-            # On affiche la liste des commandes proprement
             self.print_line("--- COMMANDES DISPONIBLES ---")
             for cmd_name, cmd_desc in self.available_commands.items():
                 self.print_line(f" - {cmd_name.ljust(20)} : {cmd_desc}")
             self.print_line("-" * 29)
 
+        elif cmd_lower == 'color help':
+            self.print_line("--- LISTE DES ZONES MODIFIABLES AVEC COLOR_ ---")
+            zones = ["start", "end", "hub", "priority", "restricted", "blocked"
+                     , "connection", "drone", "background", "menu", "menu_bg",
+                     "terminal_bg", "terminal_text", "turn_text", "turn_bg"]
+            self.print_line(f"Zones : {', '.join(zones)}")
+            self.print_line("Exemple : color menu_bg=red ou color" \
+            "turn_text green")
+            self.print_line("-" * 47)
+
         elif cmd_lower == 'troll':
             self.print_line("Encore un troll ? Non, retourne coder !")
 
-        elif cmd_lower.startswith('map='):
-            map_name = command[4:].strip()
-            if map_name:
+        elif cmd_lower.startswith(('map=', 'map ', 'm=', 'm ')):
+            clean_cmd = cmd_lower.replace('=', ' ')
+            parts = clean_cmd.split()
+            if len(parts) >= 2:
+                map_name = parts[1].strip()
                 self.print_line(f"Chargement de la map '{map_name}'...")
                 self.command_emitted.emit(f'map={map_name}')
             else:
-                self.print_line("Erreur : nom de map manquant."
+                self.print_line("Erreur : nom de map manquant. "
                                 "Usage : map=Challenger_01")
 
-        elif cmd_lower.startswith('color_'):
-            parts = command.split('=', 1)
-            if len(parts) == 2:
-                zone_type = cmd_lower.split('=')[0][6:].strip()
-                color_name = parts[1].strip()
-                if zone_type and color_name:
+        elif cmd_lower.startswith(('color ', 'color_', 'c ', 'c_')):
+            # Accepter à la fois "color zone name" et "color_zone=name"
+            clean_cmd = cmd_lower.replace('_', ' ').replace('=', ' ')
+            parts = clean_cmd.split()
+            if len(parts) >= 3:
+                zone_type = parts[1]
+                color_name = parts[2]
+
+                # Check if color exists
+                from constant import Color
+                valid_colors = [c.name.lower() for c in Color if c.name != 'TRANSPARENT']
+
+                if color_name.lower() not in valid_colors and color_name.lower() != "rainbow":
+                    self.print_line(f"❌ Erreur : La couleur '{color_name}' n'est pas reconnue.")
+                    self.print_line(f"Couleurs disponibles : rainbow, {', '.join(valid_colors)}")
+                else:
                     self.print_line(f"Changement de la couleur de '{zone_type}' en '{color_name}'.")
                     self.command_emitted.emit(f'color {zone_type} {color_name}')
-                else:
-                    self.print_line("Erreur. Usage : color_hub=red")
             else:
-                self.print_line("Erreur. Usage : color_hub=red")
+                self.print_line("Erreur. Usage : color hub red")
 
-        elif cmd_lower == 'show path':
+        elif cmd_lower in ('show path', 'show_path', 'sp'):
             self.print_line("Lancement de l'animation des drones...")
             self.command_emitted.emit('show path')
             self.toggle_visibility()
 
-        elif cmd_lower in ('reset', 'reset drone'):
+        elif cmd_lower in ('reset', 'reset drone', 'reset_drone', 'rd', 'r'):
             self.print_line("Réinitialisation des positions des drones...")
-            self.command_emitted.emit(cmd_lower)
+            self.command_emitted.emit('reset')
+            self.toggle_visibility()
+
+        elif cmd_lower in ('random color', 'random_color', 'rc'):
+            self.print_line("Changement aléatoire des couleurs du "
+                            "labyrinthe...")
+            self.command_emitted.emit('random')
+
+        elif cmd_lower.startswith(('random color auto',
+                                   'random_color_auto', 'rca')):
+            clean_cmd = cmd_lower.replace('=', ' ')
+            parts = clean_cmd.split()
+            delay = 10
+            # Si un argument a été passé (ex: rca 5), on le récupère
+            if len(parts) > 1 and parts[-1].isdigit():
+                delay = int(parts[-1])
+
+            self.command_emitted.emit(f'random color auto {delay}')
+            self.print_line(f"Changement aléatoire des couleurs du "
+                            f"labyrinthe toutes les {delay} secondes...")
             self.toggle_visibility()
 
         elif cmd_lower == 'kill' or cmd_lower == 'exit':

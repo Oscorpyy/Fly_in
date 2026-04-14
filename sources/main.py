@@ -11,13 +11,17 @@ from draw_graph import GraphWidget
 from menu import MenuWidget
 from terminal import Terminal
 from pathfinding import Graph, Zone, PathFinder
-
+from PyQt6.QtCore import QTimer
 
 class DroneSimulationWindow(QMainWindow):
     """Fenêtre principale pour la simulation des drones."""
 
     def __init__(self, map_data: Dict[str, Any]) -> None:
         super().__init__()
+
+        # Timer pour le mode random auto
+        self.random_auto_timer = QTimer(self)
+        self.random_auto_timer.timeout.connect(self.trigger_randomize)
 
         # Configuration de la fenêtre
         self.setWindowTitle("Fly-in :")
@@ -65,11 +69,56 @@ class DroneSimulationWindow(QMainWindow):
             parts = cmd.split(' ')
             if len(parts) >= 3:
                 _, zone_type, color_val = parts
-                self.graph_view.update_custom_color(zone_type, color_val)
+                if zone_type.lower() in ('menu', 'text', 'menu_bg'):
+                    if hasattr(self.menu_view, 'update_custom_color'):
+                        self.menu_view.update_custom_color(zone_type, color_val)
+                elif zone_type.lower() in ('terminal_bg', 'terminal_text'):
+                    if hasattr(self.terminal_view, 'update_custom_color'):
+                        self.terminal_view.update_custom_color(zone_type, color_val)
+                else:
+                    self.graph_view.update_custom_color(zone_type, color_val)
         elif cmd in ('reset', 'reset drone'):
+            if hasattr(self, 'random_auto_timer') and self.random_auto_timer.isActive():
+                self.random_auto_timer.stop()
             if hasattr(self.graph_view, 'reset_drones'):
                 self.graph_view.reset_drones()
-                
+            if hasattr(self.menu_view, 'reset_colors'):
+                self.menu_view.reset_colors()
+            if hasattr(self.terminal_view, 'reset_colors'):
+                self.terminal_view.reset_colors()
+        elif cmd == 'random color':
+            if hasattr(self, 'random_auto_timer') and self.random_auto_timer.isActive():
+                self.random_auto_timer.stop()
+            self.trigger_randomize()
+        elif cmd.startswith('random color auto'):
+            parts = cmd.split()
+            delay_sec = 10
+            if len(parts) >= 4:
+                try:
+                    delay_sec = int(parts[3])
+                except ValueError:
+                    pass
+            
+            if hasattr(self, 'random_auto_timer'):
+                if self.random_auto_timer.isActive():
+                    self.random_auto_timer.stop()
+                    if hasattr(self.terminal_view, 'print_line'):
+                        self.terminal_view.print_line("Mode random auto désactivé.")
+                else:
+                    self.random_auto_timer.setInterval(delay_sec * 1000)
+                    self.random_auto_timer.start()
+                    if hasattr(self.terminal_view, 'print_line'):
+                        self.terminal_view.print_line(f"Mode random auto activé (toutes les {delay_sec}s).")
+                    self.trigger_randomize()
+
+    def trigger_randomize(self) -> None:
+        if hasattr(self.graph_view, 'randomize_colors'):
+            self.graph_view.randomize_colors()
+        if hasattr(self.menu_view, 'randomize_colors'):
+            self.menu_view.randomize_colors()
+        if hasattr(self.terminal_view, 'randomize_colors'):
+            self.terminal_view.randomize_colors()
+
     def load_new_map(self, map_name: str) -> None:
         """Charge une nouvelle carte en remplaçant les vues actuelles."""
         from parsing import get_map_path_from_arg
