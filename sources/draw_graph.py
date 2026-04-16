@@ -578,8 +578,8 @@ class GraphWidget(QWidget):
              if h.get('type') == 'start_hub' and n in self._hub_positions),
             QVector3D(0.0, 0.0, 0.0)
         )
-        for de in self._drone_entities:
-            de['transform'].setTranslation(
+        for drone_entry in self._drone_entities:
+            drone_entry['transform'].setTranslation(
                 QVector3D(start_pos.x(), start_pos.y(), 0.5))
 
     # ------------------------------------------------------------------ #
@@ -629,8 +629,8 @@ class GraphWidget(QWidget):
 
         if zone_type.lower() == 'drone':
             drone_color = Color.get_qcolor(color_val, default=Color.ORANGE)
-            for de in self._drone_entities:
-                de['material'].setDiffuse(drone_color)
+            for drone_entry in self._drone_entities:
+                drone_entry['material'].setDiffuse(drone_color)
 
         if zone_type.lower() == 'background':
             bg_color = Color.get_qcolor(color_val, default=Default.BACKGROUND)
