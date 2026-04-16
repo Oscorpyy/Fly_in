@@ -1,5 +1,4 @@
-import heapq
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 
 
 class Zone:
@@ -68,8 +67,8 @@ class PathFinder:
                 if nxt not in path:
                     queue.append((nxt, path + [nxt]))
 
-        # On trie les chemins du plus favorable au moins favorable théoriquement
-        all_paths.sort(key=lambda p: sum(self.graph.zones[n].weight for n in p))
+        all_paths.sort(key=lambda p: sum(
+            self.graph.zones[n].weight for n in p))
         return all_paths
 
     def find_shortest_path(self, start: str, end: str) -> Optional[List[str]]:
@@ -78,9 +77,11 @@ class PathFinder:
             return paths[0]
         return None
 
-    def dispatch_drones(self, start: str, end: str, nb_drones: int) -> Dict[int, List[str]]:
+    def dispatch_drones(self, start: str, end: str,
+                        nb_drones: int) -> Dict[int, List[str]]:
         """
-        Répartit les drones en évitant activement qu'ils se bloquent sur les mêmes nœuds.
+        Répartit les drones en évitant activement qu'ils se bloquent sur les
+         mêmes nœuds.
         Chaque drone assigné rend son chemin plus "cher" pour le suivant.
         """
         all_paths = self.find_all_paths(start, end)
@@ -94,35 +95,31 @@ class PathFinder:
         for drone_id in range(nb_drones):
             best_path_idx = 0
             best_score = float('inf')
-            
+
             for i, path in enumerate(all_paths):
                 base_cost = sum(self.graph.zones[n].weight for n in path)
-                
-                # Le délai causé par le traffic est proche du goulot le plus long
+
                 bottleneck = 0.0
                 for n in path:
                     z = self.graph.zones[n]
                     if z.z_type not in ('start_hub', 'end_hub'):
                         cap = max(1, getattr(z, 'capacity', 1))
-                        # Si le noeud est occupé N fois, l'attente ~ N * temps / cap
                         delay = (node_usage[n] * z.weight) / cap
                         if delay > bottleneck:
                             bottleneck = delay
-                        
-                # On estime l'arrivée : temps du chemin + 1 "poids" de la pire file d'attente
+
                 score = base_cost + bottleneck
-                
+
                 if score < best_score:
                     best_score = score
                     best_path_idx = i
-                    
+
             chosen_path = all_paths[best_path_idx]
-            
-            # On enregistre que ce drone va utiliser ces noeuds
+
             for n in chosen_path:
                 if self.graph.zones[n].z_type not in ('start_hub', 'end_hub'):
                     node_usage[n] += 1
-                    
+
             drone_assignments[drone_id] = chosen_path.copy()
 
         return drone_assignments
