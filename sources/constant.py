@@ -100,4 +100,3 @@ class Default():
     MENU = Color.BLACK
     TEXT = Color.BLACK
     TERMINAL = Color.GRAY
-

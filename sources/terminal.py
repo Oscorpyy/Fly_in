@@ -27,6 +27,7 @@ class TerminalInput(QLineEdit):
             'show path': "Affiche l'animation des drones sur le chemin",
             'reset drone': "Réinitialise la position des drones",
             'reset': "Réinitialise la position des drones",
+            'game': "Active le mode de jeu manuel avec le joueur",
             'map={name}': "Charge une nouvelle map (ex: map=Challenger_01)",
             'color {zone} {color}': "Modifie la couleur d'une zone"
             "(ex: color hub red)",
@@ -177,19 +178,42 @@ class Terminal(QWidget):
         from constant import Color
         color = Color.get_qcolor(color_val, default=Color.GRAY).name()
         if zone_type == 'terminal_bg':
-            self.output_area.setStyleSheet(f"color: #FFFFFF; background-color: {color}; border: none; font-family: Consolas, monospace; font-size: 14px;")
-            self.input_area.setStyleSheet(f"color: #FFFFFF; background-color: {color}; border: 1px solid gray; font-family: Consolas, monospace; font-size: 14px; padding: 5px;")
+            self.output_area.setStyleSheet(
+                f"color: #FFFFFF; background-color: {color}; "
+                "border: none; font-family: Consolas, monospace; "
+                "font-size: 14px;"
+            )
+            self.input_area.setStyleSheet(
+                f"color: #FFFFFF; background-color: {color}; "
+                "border: 1px solid gray; font-family: Consolas, monospace; "
+                "font-size: 14px; padding: 5px;"
+            )
             # update root bg to somewhat match
             palette = self.palette()
             palette.setColor(self.backgroundRole(), QColor(color))
             self.setPalette(palette)
         elif zone_type == 'terminal_text':
-            self.output_area.setStyleSheet(f"color: {color}; background-color: transparent; border: none; font-family: Consolas, monospace; font-size: 14px;")
-            self.input_area.setStyleSheet(f"color: {color}; background-color: rgba(50, 50, 50, 150); border: 1px solid gray; font-family: Consolas, monospace; font-size: 14px; padding: 5px;")
+            self.output_area.setStyleSheet(
+                f"color: {color}; background-color: transparent; "
+                "border: none; font-family: Consolas, monospace; "
+                "font-size: 14px;"
+            )
+            self.input_area.setStyleSheet(
+                f"color: {color}; background-color: rgba(50, 50, 50, 150); "
+                "border: 1px solid gray; font-family: Consolas, monospace; "
+                "font-size: 14px; padding: 5px;"
+            )
 
     def reset_colors(self) -> None:
-        self.output_area.setStyleSheet("color: #FFFFFF; background-color: transparent; border: none; font-family: Consolas, monospace; font-size: 14px;")
-        self.input_area.setStyleSheet("color: #FFFFFF; background-color: rgba(50, 50, 50, 150); border: 1px solid gray; font-family: Consolas, monospace; font-size: 14px; padding: 5px;")
+        self.output_area.setStyleSheet(
+            "color: #FFFFFF; background-color: transparent; "
+            "border: none; font-family: Consolas, monospace; font-size: 14px;"
+        )
+        self.input_area.setStyleSheet(
+            "color: #FFFFFF; background-color: rgba(50, 50, 50, 150); "
+            "border: 1px solid gray; font-family: Consolas, monospace; "
+            "font-size: 14px; padding: 5px;"
+        )
         palette = self.palette()
         palette.setColor(self.backgroundRole(), QColor(0, 0, 0, 200))
         self.setPalette(palette)
@@ -254,12 +278,13 @@ class Terminal(QWidget):
 
         elif cmd_lower == 'color help':
             self.print_line("--- LISTE DES ZONES MODIFIABLES AVEC COLOR_ ---")
-            zones = ["start", "end", "hub", "priority", "restricted", "blocked"
-                     , "connection", "drone", "background", "menu", "menu_bg",
-                     "terminal_bg", "terminal_text", "turn_text", "turn_bg"]
+            zones = ["start", "end", "hub", "priority", "restricted",
+                     "blocked", "connection", "drone", "background", "menu",
+                     "menu_bg", "terminal_bg", "terminal_text", "turn_text",
+                     "turn_bg"]
             self.print_line(f"Zones : {', '.join(zones)}")
-            self.print_line("Exemple : color menu_bg=red ou color" \
-            "turn_text green")
+            self.print_line("Exemple : color menu_bg=red ou color"
+                            " turn_text green")
             self.print_line("-" * 47)
 
         elif cmd_lower == 'troll':
@@ -286,14 +311,20 @@ class Terminal(QWidget):
 
                 # Check if color exists
                 from constant import Color
-                valid_colors = [c.name.lower() for c in Color if c.name != 'TRANSPARENT']
+                valid_colors = [
+                    c.name.lower() for c in Color if c.name != 'TRANSPARENT']
 
-                if color_name.lower() not in valid_colors and color_name.lower() != "rainbow":
-                    self.print_line(f"❌ Erreur : La couleur '{color_name}' n'est pas reconnue.")
-                    self.print_line(f"Couleurs disponibles : rainbow, {', '.join(valid_colors)}")
+                if color_name.lower() not in valid_colors and color_name.lower(
+                ) != "rainbow":
+                    self.print_line(f"❌ Erreur : La couleur "
+                                    f"'{color_name}' n'est pas reconnue.")
+                    self.print_line(f"Couleurs disponibles : rainbow, "
+                                    f"{', '.join(valid_colors)}")
                 else:
-                    self.print_line(f"Changement de la couleur de '{zone_type}' en '{color_name}'.")
-                    self.command_emitted.emit(f'color {zone_type} {color_name}')
+                    self.print_line(f"Changement de la couleur de "
+                                    f"'{zone_type}' en '{color_name}'.")
+                    self.command_emitted.emit(f'color {zone_type}'
+                                              f'{color_name}')
             else:
                 self.print_line("Erreur. Usage : color hub red")
 
@@ -302,9 +333,19 @@ class Terminal(QWidget):
             self.command_emitted.emit('show path')
             self.toggle_visibility()
 
-        elif cmd_lower in ('reset', 'reset drone', 'reset_drone', 'rd', 'r'):
+        elif cmd_lower in ('reset drone', 'reset_drone', 'rd'):
             self.print_line("Réinitialisation des positions des drones...")
+            self.command_emitted.emit('reset drone')
+            self.toggle_visibility()
+
+        elif cmd_lower in ('reset', 'r'):
+            self.print_line("Réinitialisation totale...")
             self.command_emitted.emit('reset')
+            self.toggle_visibility()
+
+        elif cmd_lower in ('game', 'g'):
+            self.print_line("Activation du mode jeu...")
+            self.command_emitted.emit('game')
             self.toggle_visibility()
 
         elif cmd_lower in ('random color', 'random_color', 'rc'):
@@ -366,21 +407,19 @@ class Terminal(QWidget):
                         return False
 
             elif event.type() == QEvent.Type.KeyPress:
-                # Si l'input a déjà le focus, on laisse l'événement arriver jusqu'à lui normalement
                 if self.input_area.hasFocus():
-                    pass # Ne fait rien, laisse eventFilter le transmettre sagement
+                    pass
                 else:
                     key = event.key()
-                    # Si c'est une pression hors focus, on capture la touche (sauf Echap/T)
                     if key not in (Qt.Key.Key_Escape, Qt.Key.Key_T,
                                    Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                        self.input_area.setFocus() # Donne le focus à l'input
+                        self.input_area.setFocus()
                         text = event.text()
                         if text and text.isprintable() and not (
                                 event.modifiers() &
                                 Qt.KeyboardModifier.ControlModifier):
                             self.input_area.setText(
                                 self.input_area.text() + text)
-                        return True # Mange l'événement pour ne pas l'envoyer ailleurs
+                        return True
 
         return super().eventFilter(obj, event)
