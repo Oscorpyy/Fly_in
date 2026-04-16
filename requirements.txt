@@ -1,3 +1,4 @@
 PyQt6
+PyQt6-3D
 flake8
 mypy
