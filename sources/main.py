@@ -3,7 +3,7 @@ import signal
 from typing import List, Dict, Any
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtGui import QKeyEvent, QCursor
 
 from parsing import get_args
 from parsing_text import parse_map_text
@@ -21,6 +21,8 @@ class DroneSimulationWindow(QMainWindow):
 
     def __init__(self, map_data: Dict[str, Any]) -> None:
         super().__init__()
+        # On s'assure que le curseur par défaut est là
+        QApplication.restoreOverrideCursor()
 
         # Timer pour le mode random auto
         self.random_auto_timer = QTimer(self)
@@ -36,7 +38,7 @@ class DroneSimulationWindow(QMainWindow):
         self.konami_sequence: List[int] = []
 
         # Configuration de la fenêtre
-        self.setWindowTitle("Fly-in :")
+        self.setWindowTitle("Fly-in")
         self.showMaximized()
 
         # Création d'un widget central et de son layout

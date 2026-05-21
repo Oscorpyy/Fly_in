@@ -1,6 +1,7 @@
 VENV = .venv
 PY = $(VENV)/bin/python3
 PIP = $(VENV)/bin/pip
+SRC_DIR = sources
 
 MAP ?=challenger_01
 all: install

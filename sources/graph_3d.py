@@ -73,7 +73,7 @@ class Graph3DWidget(QWidget):
         right_x = math.cos(self.yaw)
         right_z = -math.sin(self.yaw)
 
-        if Qt.Key.Key_W in self.keys_pressed or \
+        if Qt.Key.Key_W in self.keys_pressed or Qt.Key.Key_Z in self.keys_pressed or \
                 Qt.Key.Key_Up in self.keys_pressed:
             self.cam_x += forward_x * move_speed
             self.cam_z += forward_z * move_speed
@@ -81,7 +81,7 @@ class Graph3DWidget(QWidget):
                 Qt.Key.Key_Down in self.keys_pressed:
             self.cam_x -= forward_x * move_speed
             self.cam_z -= forward_z * move_speed
-        if Qt.Key.Key_A in self.keys_pressed:
+        if Qt.Key.Key_A in self.keys_pressed or Qt.Key.Key_Q in self.keys_pressed:
             self.cam_x -= right_x * move_speed
             self.cam_z -= right_z * move_speed
         if Qt.Key.Key_D in self.keys_pressed:
@@ -100,6 +100,10 @@ class Graph3DWidget(QWidget):
         self.update()
 
     def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            from PyQt6.QtWidgets import QApplication
+            QApplication.quit()
+            return
         if not event.isAutoRepeat():
             self.keys_pressed.add(event.key())
         super().keyPressEvent(event)
@@ -110,16 +114,24 @@ class Graph3DWidget(QWidget):
         super().keyReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
-        dx = event.pos().x() - self.last_mx
-        dy = event.pos().y() - self.last_my
-        self.last_mx = event.pos().x()
-        self.last_my = event.pos().y()
+        # Utiliser position() propre à PyQt6
+        x = event.position().x()
+        y = event.position().y()
 
-        if event.buttons() & Qt.MouseButton.LeftButton:
-            self.yaw += dx * 0.005
-            self.pitch += dy * 0.005
-            # Clamp pitch
-            self.pitch = max(-math.pi/2, min(math.pi/2, self.pitch))
+        # Si c'est le premier mouvement (last_mx == 0), on initialise pour éviter un bond géant
+        if self.last_mx == 0 and self.last_my == 0:
+            self.last_mx = x
+            self.last_my = y
+
+        dx = x - self.last_mx
+        dy = y - self.last_my
+        self.last_mx = x
+        self.last_my = y
+
+        self.yaw += dx * 0.005
+        self.pitch += dy * 0.005
+        # Clamp pitch
+        self.pitch = max(-math.pi/2, min(math.pi/2, self.pitch))
 
     def mousePressEvent(self, event):
         self.last_mx = event.pos().x()
