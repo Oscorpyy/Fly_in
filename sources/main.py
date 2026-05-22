@@ -7,6 +7,7 @@ from PyQt6.QtGui import QKeyEvent, QCursor
 
 from parsing import get_args
 from parsing_text import parse_map_text
+from output import print_simulation_output
 from draw_graph import GraphWidget
 from menu import MenuWidget
 from terminal import Terminal
@@ -377,7 +378,6 @@ def main() -> None:
     # Récupération et parsing des données
     args = get_args()
     map_data = parse_map_text(args['map_path'])
-
     # --- INITIALISATION DU PATHFINDING ---
     graph = Graph()
 
@@ -423,7 +423,7 @@ def main() -> None:
                                              nb_drones)
 
             map_data['calculated_paths'] = drone_paths
-            print(f"✅ Chemin trouvé : {' -> '.join(shortest_path)}")
+            print_simulation_output(drone_paths)
         else:
             print("❌ Aucun chemin possible !")
     else:
