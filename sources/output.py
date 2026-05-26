@@ -10,7 +10,8 @@ def _is_restricted(zone_name: str, map_data: Dict[str, Any]) -> bool:
         attrs = z.get("attributes", {})
         if attrs.get("zone") == "restricted":
             return True
-        if str(z.get("type", "")) == "restricted" or str(z.get("z_type", "")) == "restricted":
+        if str(z.get("type", "")) == "restricted" or str(
+                z.get("z_type", "")) == "restricted":
             return True
 
     # Fallback to zones

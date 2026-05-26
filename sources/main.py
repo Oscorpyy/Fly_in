@@ -13,7 +13,6 @@ from menu import MenuWidget
 from terminal import Terminal
 from pathfinding import Graph, Zone, PathFinder
 from map import Map3DWidget
-from graph_3d import Graph3DWidget
 from PyQt6.QtCore import QTimer
 
 
@@ -56,6 +55,9 @@ class DroneSimulationWindow(QMainWindow):
         # Ajout du composant menu personnalisé
         self.menu_view = MenuWidget(map_data, self)
         layout.addWidget(self.menu_view)
+        self.menu_view.graph_reset_requested.connect(
+                self.graph_view.reset_graph_colors
+            )
 
         # Ajout du terminal en "surimpression" (overlay)
         self.terminal_view = Terminal(central_widget)
@@ -65,13 +67,8 @@ class DroneSimulationWindow(QMainWindow):
         self.map_3d_view.hide()
         layout.addWidget(self.map_3d_view)
 
-        # Ajout du Graph 3D pour la fin (caché par défaut)
-        self.graph_3d_view = Graph3DWidget(map_data, self)
-        self.graph_3d_view.hide()
-        layout.addWidget(self.graph_3d_view)
-
         # -- CONNEXION --
-        self.map_3d_view.win_trigger.connect(self.transition_to_3d_graph)
+        self.map_3d_view.win_trigger.connect(self.transition_to_2d_graph)
         # On relie le signal "node_hovered" émis par le dessin du graphe
         # à la méthode "on_node_hovered" du menu. C'est l'essence de PyQt !
         self.graph_view.node_hovered.connect(self.menu_view.on_node_hovered)
@@ -87,13 +84,15 @@ class DroneSimulationWindow(QMainWindow):
         if getattr(self.graph_view, 'game_mode', False) and self.keys_pressed:
             self.graph_view.handle_movement_keys(self.keys_pressed)
 
-    def transition_to_3d_graph(self) -> None:
-        """Cache le raycaster et affiche la marche en 3D sur le graphe."""
+    def transition_to_2d_graph(self) -> None:
+        """Ramène au menu normal après le jeu."""
         if hasattr(self, 'map_3d_view'):
             self.map_3d_view.hide()
-        if hasattr(self, 'graph_3d_view'):
-            self.graph_3d_view.show()
-            self.graph_3d_view.setFocus()
+        if hasattr(self, 'graph_view'):
+            self.graph_view.show()
+            self.graph_view.setFocus()
+        if hasattr(self, 'menu_view'):
+            self.menu_view.show()
 
     def trigger_blackout(self) -> None:
         """Affiche la Map 3D raycaster pour le Konami code."""
@@ -140,12 +139,12 @@ class DroneSimulationWindow(QMainWindow):
         elif cmd == 'reset drone':
             if hasattr(self.graph_view, 'reset_drones'):
                 self.graph_view.reset_drones()
+            if getattr(self.graph_view, 'game_mode', False):
+                self.graph_view.toggle_game_mode()
         elif cmd == 'reset':
             if hasattr(self, 'random_auto_timer'
                        ) and self.random_auto_timer.isActive():
                 self.random_auto_timer.stop()
-
-            # Quitter le mode jeu si actif
             if getattr(self.graph_view, 'game_mode', False):
                 self.graph_view.toggle_game_mode()
 
@@ -162,8 +161,6 @@ class DroneSimulationWindow(QMainWindow):
                 self.menu_view.show()
             if hasattr(self, 'map_3d_view'):
                 self.map_3d_view.hide()
-            if hasattr(self, 'graph_3d_view'):
-                self.graph_3d_view.hide()
             if self.centralWidget():
                 self.centralWidget().setStyleSheet("")
             self.setStyleSheet("")
@@ -175,6 +172,8 @@ class DroneSimulationWindow(QMainWindow):
         elif cmd == 'game':
             if hasattr(self.graph_view, 'toggle_game_mode'):
                 self.graph_view.toggle_game_mode()
+            self.graph_view.update()
+            self.update()
         elif cmd.startswith('random color auto'):
             parts = cmd.split()
             delay_sec = 10
@@ -291,13 +290,6 @@ class DroneSimulationWindow(QMainWindow):
         self.graph_view = GraphWidget(new_map_data, self)
         self.menu_view = MenuWidget(new_map_data, self)
 
-        if hasattr(self, 'graph_3d_view'):
-            layout.removeWidget(self.graph_3d_view)
-            self.graph_3d_view.deleteLater()
-            self.graph_3d_view = Graph3DWidget(new_map_data, self)
-            self.graph_3d_view.hide()
-            layout.addWidget(self.graph_3d_view)
-
         layout.addWidget(self.graph_view)
         layout.addWidget(self.menu_view)
 
@@ -306,14 +298,10 @@ class DroneSimulationWindow(QMainWindow):
         self.terminal_view.raise_()
         self.update()
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: Any) -> None:
         """Gère les événements clavier (ex: Echap pour quitter)."""
         if not event.isAutoRepeat():
             self.keys_pressed.add(event.key())
-
-        if hasattr(self, 'graph_3d_view') and self.graph_3d_view.isVisible():
-            if event.key() not in (Qt.Key.Key_T, Qt.Key.Key_Escape):
-                pass
 
         in_3d_mode = hasattr(self,
                              'map_3d_view') and self.map_3d_view.isVisible()
@@ -362,7 +350,7 @@ class DroneSimulationWindow(QMainWindow):
         else:
             super().keyPressEvent(event)
 
-    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+    def keyReleaseEvent(self, event: Any) -> None:
         if hasattr(self, 'map_3d_view') and self.map_3d_view.isVisible():
             self.map_3d_view.handle_key_release(event.key())
 

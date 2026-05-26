@@ -135,16 +135,7 @@ class GraphWidget(QWidget):
         self.nb_turns = 0
         self.print_nb_turns()
 
-        self.custom_colors.clear()
-
-        # Réinitialisation du fond (background)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), Default.BACKGROUND.qcolor())
-        self.setPalette(palette)
-
-        self.print_nb_turns()
-
-        for drone_id, drone in enumerate(self.drones):
+        for _, drone in enumerate(self.drones):
             drone['step'] = 0
             drone['progress'] = 0.0
             drone['wait_turns'] = 0
@@ -158,6 +149,16 @@ class GraphWidget(QWidget):
                 pass
         self.update()
 
+    def reset_graph_colors(self) -> None:
+        """Réinitialise les couleurs et le fond du graphe."""
+        self.custom_colors.clear()
+
+        palette = self.palette()
+        bg_color = Default.BACKGROUND.qcolor()
+        palette.setColor(self.backgroundRole(), bg_color)
+        self.setPalette(palette)
+        self.update()
+
     def get_neighbors(self, node: str) -> list[str]:
         neighbors = []
         for c in self.connections:
@@ -168,6 +169,7 @@ class GraphWidget(QWidget):
         return neighbors
 
     def toggle_game_mode(self) -> None:
+        """Active ou désactive le mode jeu interactif."""
         self.game_mode = not self.game_mode
         if self.game_mode:
             if hasattr(self, 'animation_timer'):
@@ -175,7 +177,8 @@ class GraphWidget(QWidget):
             # Cache les drones
             for drone in self.drones:
                 drone['label'].hide()
-
+            self.saved_drones = self.drones
+            self.drones = []
             start_node = next((n for n, d in self.hubs.items(
                 ) if d.get('type') == 'start_hub'), next(iter(self.hubs)))
             self.player = Player(start_node)
@@ -185,6 +188,12 @@ class GraphWidget(QWidget):
                 drone['label'].show()
             self.player = None
         self.update()
+        if hasattr(self, 'main_window') and hasattr(self.main_window,
+                                                    'menu_view'):
+            self.main_window.menu_view.update()
+        menu = getattr(self.window(), 'menu_view', None)
+        if menu:
+            menu.update()
 
     def handle_movement_keys(self, keys: set) -> bool:
         if not self.game_mode or not self.player:

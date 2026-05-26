@@ -1,7 +1,8 @@
 from typing import Dict, Any
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QFont
-from PyQt6.QtCore import Qt, QPointF, QRect
+from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtCore import pyqtSignal
 from constant import Default, Color
 
 
@@ -10,6 +11,8 @@ class MenuWidget(QWidget):
     Widget personnalisé chargé de dessiner le menu de la simulation
     en fonction des données parsées.
     """
+    graph_reset_requested = pyqtSignal()
+
     def __init__(self, map_data: Dict[str, Any],
                  parent: Any = None) -> None:
         super().__init__(parent)
@@ -61,12 +64,15 @@ class MenuWidget(QWidget):
             self.update_custom_color(z, random.choice(all_colors))
 
     def reset_colors(self) -> None:
+        """Réinitialise les couleurs du menu et notifie le système."""
         self.custom_colors.clear()
+
         palette = self.palette()
         bg_color = Default.BACKGROUND.qcolor()
         palette.setColor(self.backgroundRole(), bg_color)
         self.setPalette(palette)
         self.update()
+        self.graph_reset_requested.emit()
 
     def paintEvent(self, event) -> None:
         """Méthode appelée automatiquement par Qt pour dessiner le widget."""

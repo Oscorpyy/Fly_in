@@ -26,7 +26,7 @@ class TerminalInput(QLineEdit):
             'kill || exit': "Quitte l'application",
             'show path': "Affiche l'animation des drones sur le chemin",
             'reset drone': "Réinitialise la position des drones",
-            'reset': "Réinitialise la position des drones",
+            'reset': "Réinitialise la position des drones + les couleurs",
             'game': "Active le mode de jeu manuel avec le joueur",
             'map={name}': "Charge une nouvelle map (ex: map=Challenger_01)",
             'color {zone} {color}': "Modifie la couleur d'une zone"

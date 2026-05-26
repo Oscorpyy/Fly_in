@@ -8,6 +8,7 @@ from PyQt6.Qt3DExtras import Qt3DWindow, QFirstPersonCameraController, QCuboidMe
 from PyQt6.Qt3DRender import QObjectPicker, QPickingSettings, QPointLight
 from PyQt6.QtWidgets import QApplication
 
+
 class Map3DWidget(QWidget):
     win_trigger = pyqtSignal()
 
@@ -323,12 +324,17 @@ class Map3DWidget(QWidget):
         self.score += 1
         if hasattr(self, 'score_val_mesh'):
             self.score_val_mesh.setText(f"{self.score:02d}")
+        
         self.place_target()
 
     def update_game_timer(self):
         self.time_left -= 1
         if self.time_left <= 0:
-            self.win_trigger.emit()
+            self.game_timer.stop()
+            self.game_started = False
+            if hasattr(self, 'start_text_entity'):
+                self.start_text_entity.setEnabled(True)
+            self.place_start_target()
             return
 
         if hasattr(self, 'time_val_mesh'):
