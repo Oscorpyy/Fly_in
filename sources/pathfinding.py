@@ -121,5 +121,4 @@ class PathFinder:
                     node_usage[n] += 1
 
             drone_assignments[drone_id] = chosen_path.copy()
-
         return drone_assignments

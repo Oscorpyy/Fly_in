@@ -1,11 +1,13 @@
 import math
 from typing import Dict, Any, List
 
+
 class Player:
     def __init__(self, start_node: str):
         self.current_node = start_node
 
-    def move(self, direction: str, current_x: float, current_y: float, neighbors: List[str], hubs: Dict[str, Any]) -> bool:
+    def move(self, direction: str, current_x: float, current_y: float,
+             neighbors: List[str], hubs: Dict[str, Any]) -> bool:
         best_neighbor = None
         # We want the max projection (closest to +1.0)
         best_score = -2.0

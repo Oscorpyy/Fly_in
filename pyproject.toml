@@ -3,7 +3,7 @@ name = "fly-in"
 version = "0.1.0"
 description = "Drones are interesting"
 readme = "README.md"
-requires-python = "==3.12.*"
+requires-python = ">=3.10"
 dependencies = [
     "pyqt6>=6.7.0,<6.8.0",
     "pyqt6-3d>=6.7.0,<6.8.0",

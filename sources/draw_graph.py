@@ -16,7 +16,7 @@ class GraphWidget(QWidget):
     node_hovered = pyqtSignal(str)
 
     def __init__(self, map_data: Dict[str, Any],
-                 parent: QWidget = None) -> None:
+                 parent: Any = None) -> None:
         super().__init__(parent)
         self.setMouseTracking(True)
         self.map_data = map_data
@@ -29,13 +29,14 @@ class GraphWidget(QWidget):
         self.turn_label.setFixedSize(130, 40)
         self.turn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.print_nb_turns()
-        
+
         # Récupération des chemins (si calculés)
         self.calculated_paths = map_data.get('calculated_paths', {})
 
         # Pour stocker les positions des noeuds à l'écran
-        self._drawn_nodes: Dict[str, QPointF] = {}
+        self._drawn_nodes: Any = {}
         self._last_hovered = ""
+        self._pinned_node = ""
 
         self.setAutoFillBackground(True)
         palette = self.palette()
@@ -49,7 +50,7 @@ class GraphWidget(QWidget):
 
         # Configuration Player
         self.game_mode = False
-        self.player = None
+        self.player: Any = None
         self.player_pixmap = QPixmap("assets/player.png")
 
         # Obtenir le nombre de drones depuis les donnees (sinon 1)
@@ -61,10 +62,10 @@ class GraphWidget(QWidget):
             drone_movie.setScaledSize(self.drone_size)
             drone_label.setMovie(drone_movie)
             drone_movie.start()
-            # Optionnel: rendre le fond du label transparent
-            drone_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            # Important: Empêcher le label de bloquer la souris (hover des hubs)
-            drone_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            drone_label.setAttribute(
+                Qt.WidgetAttribute.WA_TranslucentBackground)
+            drone_label.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
             # --- ICI on assigne le point de départ du pathfinding ---
             assigned_path = self.calculated_paths.get(drone_id)
@@ -146,7 +147,7 @@ class GraphWidget(QWidget):
         for drone_id, drone in enumerate(self.drones):
             drone['step'] = 0
             drone['progress'] = 0.0
-            drone['wait_turns'] = drone_id
+            drone['wait_turns'] = 0
             drone['label'].setGraphicsEffect(None)
 
         if hasattr(self, 'animation_timer'):
@@ -227,6 +228,9 @@ class GraphWidget(QWidget):
         )
         if moved:
             self.update()
+            menu = getattr(self.window(), 'menu_view', None)
+            if menu:
+                menu.update()
             return True
         return False
 
@@ -237,7 +241,7 @@ class GraphWidget(QWidget):
             if hasattr(self, 'animation_timer'):
                 self.animation_timer.timeout.connect(
                     self.update_drone_positions)
-                self.animation_timer.start(16)  # ~60 FPS
+                self.animation_timer.start(16)
 
             self.update()
 
@@ -468,9 +472,9 @@ class GraphWidget(QWidget):
                 drone['progress'] = progress
 
         self.update()
-        
+
         # S'assurer que le menu se met à jour pour voir les stats en temps réel
-        window = self.window()
+        window: Any = self.window()
         if hasattr(window, 'menu_view'):
             window.menu_view.update()
 
@@ -495,7 +499,7 @@ class GraphWidget(QWidget):
         margin = 60
         w = self.width() - 2 * margin
         h = self.height() - 2 * margin
-        
+
         # Le reste du dessin est géré plus bas ou dans les classes spécifiques
 
         actual_range_x = max_x - min_x
@@ -705,4 +709,23 @@ class GraphWidget(QWidget):
         # Si le noeud survolé a changé (pour ne pas spammer d'événements)
         if self._last_hovered != hovered_name:
             self._last_hovered = hovered_name
-            self.node_hovered.emit(hovered_name)
+
+            if hovered_name:
+                self._pinned_node = ""  # Passer sur un autre hub annule le pin
+                self.node_hovered.emit(hovered_name)
+            else:
+                if getattr(self, '_pinned_node', ""):
+                    self.node_hovered.emit(self._pinned_node)
+                else:
+                    self.node_hovered.emit("")
+
+    def mousePressEvent(self, event) -> None:
+        """Fixe l'affichage d'un hub au clic."""
+        pos = event.position()
+        for name, (node_pos, radius) in self._drawn_nodes.items():
+            diff_x = pos.x() - node_pos.x()
+            diff_y = pos.y() - node_pos.y()
+            if math.hypot(diff_x, diff_y) <= radius:
+                self._pinned_node = name
+                self.node_hovered.emit(name)
+                break

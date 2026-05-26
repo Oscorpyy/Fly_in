@@ -305,6 +305,9 @@ class GraphWidget(QWidget):
         )
         if moved:
             self.update()
+            menu = getattr(self.window(), 'menu_view', None)
+            if menu:
+                menu.update()
             return True
         return False
 

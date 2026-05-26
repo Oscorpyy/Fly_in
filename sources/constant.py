@@ -4,6 +4,7 @@ Constants and default configurations for the game.
 
 from enum import IntEnum
 from PyQt6.QtGui import QColor
+from typing import Any
 
 
 class Color(IntEnum):
@@ -76,7 +77,7 @@ class Color(IntEnum):
         return QColor(r, g, b, a)
 
     @classmethod
-    def get_qcolor(cls, name: str, default: 'Color' = None) -> QColor:
+    def get_qcolor(cls, name: str, default: Any = None) -> QColor:
         """Récupère une couleur QColor par son nom (insensible à la casse)."""
         if default is None:
             default = cls.GRAY
@@ -98,5 +99,10 @@ class Default():
     CONNECTION = Color.BLACK
     BACKGROUND = Color.NIGHT_BLUE
     MENU = Color.BLACK
-    TEXT = Color.BLACK
+    TEXT = Color.LIGHT_GRAY
     TERMINAL = Color.GRAY
+
+    # Barres de capacité
+    CAPACITY_BAR_BG = Color.DARK_GRAY
+    CAPACITY_BAR_OK = Color.LIME_GREEN
+    CAPACITY_BAR_OVERFLOW = Color.RED

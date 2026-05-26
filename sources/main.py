@@ -124,7 +124,10 @@ class DroneSimulationWindow(QMainWindow):
             parts = cmd.split(' ')
             if len(parts) >= 3:
                 _, zone_type, color_val = parts
-                if zone_type.lower() in ('menu', 'text', 'menu_bg'):
+                if zone_type.lower() in ('menu', 'text', 'menu_bg',
+                                         'capacity_bar_bg',
+                                         'capacity_bar_ok',
+                                         'capacity_bar_overflow'):
                     if hasattr(self.menu_view, 'update_custom_color'):
                         self.menu_view.update_custom_color(
                             zone_type, color_val)
@@ -335,13 +338,14 @@ class DroneSimulationWindow(QMainWindow):
             else:
                 QApplication.quit()
         elif event.key() == Qt.Key.Key_P:
-            # Ne rien faire si l'animation fluide est déjà en cours
             if (hasattr(self.graph_view, 'animation_timer') and
                     self.graph_view.animation_timer.isActive()):
                 return
             if hasattr(self.graph_view, 'next_turn'):
                 self.graph_view.next_turn()
                 self.graph_view.print_nb_turns()
+                if hasattr(self, 'menu_view'):
+                    self.menu_view.update()
         elif event.key() in (Qt.Key.Key_W, Qt.Key.Key_A,
                              Qt.Key.Key_S, Qt.Key.Key_D,
                              Qt.Key.Key_Q, Qt.Key.Key_E,
@@ -423,7 +427,7 @@ def main() -> None:
                                              nb_drones)
 
             map_data['calculated_paths'] = drone_paths
-            print_simulation_output(drone_paths)
+            print_simulation_output(drone_paths, map_data)
         else:
             print("❌ Aucun chemin possible !")
     else:

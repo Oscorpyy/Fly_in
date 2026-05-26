@@ -59,8 +59,30 @@ class TerminalInput(QLineEdit):
 
         # Si c'est le début d'une recherche d'auto-complétion
         if not self.tab_matches:
-            self.tab_matches = [cmd for cmd in self.available_commands.keys()
-                                if cmd.startswith(current_text.lower())]
+            parts = current_text.split()
+            base_cmd = parts[0].lower() if parts else ""
+            
+            if base_cmd == "color":
+                zones = ["start", "end", "hub", "priority", "restricted",
+                         "blocked", "connection", "drone", "background",
+                         "menu", "menu_bg", "terminal_bg", "terminal_text",
+                         "turn_text", "turn_bg", "capacity_bar_bg",
+                         "capacity_bar_ok", "capacity_bar_overflow"]
+                         
+                if len(parts) == 1 and current_text.endswith(" "):
+                    self.tab_matches = [f"color {z} " for z in zones]
+                elif len(parts) == 2 and not current_text.endswith(" "):
+                    prefix = parts[1].lower()
+                    self.tab_matches = [f"color {z} " for z in zones if z.startswith(prefix)]
+                elif (len(parts) == 2 and current_text.endswith(" ")) or (len(parts) == 3 and not current_text.endswith(" ")):
+                    prefix = parts[2].lower() if len(parts) == 3 else ""
+                    from constant import Color
+                    valid_colors = [c.name.lower() for c in Color if c.name != 'TRANSPARENT'] + ["rainbow"]
+                    self.tab_matches = [f"color {parts[1]} {c}" for c in valid_colors if c.startswith(prefix)]
+
+            if not self.tab_matches:
+                self.tab_matches = [cmd for cmd in self.available_commands.keys()
+                                    if cmd.startswith(current_text.lower())]
             self.tab_index = 0
 
         if self.tab_matches:
@@ -281,7 +303,8 @@ class Terminal(QWidget):
             zones = ["start", "end", "hub", "priority", "restricted",
                      "blocked", "connection", "drone", "background", "menu",
                      "menu_bg", "terminal_bg", "terminal_text", "turn_text",
-                     "turn_bg"]
+                     "turn_bg", "capacity_bar_bg", "capacity_bar_ok",
+                     "capacity_bar_overflow"]
             self.print_line(f"Zones : {', '.join(zones)}")
             self.print_line("Exemple : color menu_bg=red ou color"
                             " turn_text green")
@@ -323,7 +346,7 @@ class Terminal(QWidget):
                 else:
                     self.print_line(f"Changement de la couleur de "
                                     f"'{zone_type}' en '{color_name}'.")
-                    self.command_emitted.emit(f'color {zone_type}'
+                    self.command_emitted.emit(f'color {zone_type} '
                                               f'{color_name}')
             else:
                 self.print_line("Erreur. Usage : color hub red")
@@ -351,7 +374,7 @@ class Terminal(QWidget):
         elif cmd_lower in ('random color', 'random_color', 'rc'):
             self.print_line("Changement aléatoire des couleurs du "
                             "labyrinthe...")
-            self.command_emitted.emit('random')
+            self.command_emitted.emit('random color')
 
         elif cmd_lower.startswith(('random color auto',
                                    'random_color_auto', 'rca')):
