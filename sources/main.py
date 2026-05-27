@@ -61,6 +61,7 @@ class DroneSimulationWindow(QMainWindow):
         self.terminal_view = Terminal(central_widget)
 
         # Ajout de la map 3D (cachée par défaut)
+        self.GameMode = 0
         self.map_3d_view = Map3DWidget(map_data, self)
         self.map_3d_view.hide()
         layout.addWidget(self.map_3d_view)
@@ -136,10 +137,12 @@ class DroneSimulationWindow(QMainWindow):
                     self.graph_view.update_custom_color(zone_type, color_val)
         elif cmd == 'reset drone':
             if hasattr(self.graph_view, 'reset_drones'):
+                self.GameMode = 0
                 self.graph_view.reset_drones()
             if getattr(self.graph_view, 'game_mode', False):
                 self.graph_view.toggle_game_mode()
         elif cmd == 'reset':
+            self.GameMode = 0
             if hasattr(self, 'random_auto_timer'
                        ) and self.random_auto_timer.isActive():
                 self.random_auto_timer.stop()
@@ -172,6 +175,10 @@ class DroneSimulationWindow(QMainWindow):
                 self.graph_view.toggle_game_mode()
             self.graph_view.update()
             self.update()
+            if self.GameMode == 0:
+                self.GameMode = 1
+            elif self.GameMode == 1:
+                self.GameMode = 0
         elif cmd.startswith('random color auto'):
             parts = cmd.split()
             delay_sec = 10
@@ -310,8 +317,7 @@ class DroneSimulationWindow(QMainWindow):
         if len(self.konami_sequence) > len(self.konami_code):
             self.konami_sequence.pop(0)
 
-        if self.konami_sequence == self.konami_code:
-            # Code Konami activé, on affiche un écran noir
+        if self.konami_sequence == self.konami_code and self.GameMode == 1:
             self.trigger_blackout()
             self.konami_sequence.clear()
 

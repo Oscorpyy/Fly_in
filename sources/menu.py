@@ -29,7 +29,7 @@ class MenuWidget(QWidget):
         palette.setColor(self.backgroundRole(), bg_color)
         self.setPalette(palette)
 
-    def wheelEvent(self, event) -> None:
+    def wheelEvent(self, event: Any) -> None:
         """Gère le défilement de la liste des capacités."""
         delta = event.angleDelta().y()
         if delta > 0:
@@ -75,7 +75,7 @@ class MenuWidget(QWidget):
         self.update()
         self.graph_reset_requested.emit()
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, event: Any) -> None:
         """Méthode appelée automatiquement par Qt pour dessiner le widget."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -358,7 +358,7 @@ class MenuWidget(QWidget):
         self.hovered_node = node_name
         self.update()
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event: Any) -> None:
         if getattr(self, 'max_scroll', 0) <= 0:
             return super().mousePressEvent(event)
 
@@ -379,7 +379,7 @@ class MenuWidget(QWidget):
         else:
             super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event) -> None:
+    def mouseMoveEvent(self, event: Any) -> None:
         if getattr(self, '_scrolling', False):
             rect = self.rect()
             middle_x = int(rect.width() / 2)
@@ -389,7 +389,7 @@ class MenuWidget(QWidget):
         else:
             super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event) -> None:
+    def mouseReleaseEvent(self, event: Any) -> None:
         self._scrolling = False
         super().mouseReleaseEvent(event)
 

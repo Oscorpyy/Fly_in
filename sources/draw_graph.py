@@ -194,7 +194,7 @@ class GraphWidget(QWidget):
         if menu:
             menu.update()
 
-    def handle_movement_keys(self, keys: set) -> bool:
+    def handle_movement_keys(self, keys: set[Qt.Key]) -> bool:
         if not self.game_mode or not self.player:
             return False
 
@@ -492,7 +492,7 @@ class GraphWidget(QWidget):
         if all_done:
             self.animation_timer.stop()
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, event: Any) -> None:
         """Méthode appelée automatiquement par Qt pour dessiner le widget."""
         if not self.hubs:
             return
@@ -703,7 +703,7 @@ class GraphWidget(QWidget):
 
         painter.end()
 
-    def mouseMoveEvent(self, event) -> None:
+    def mouseMoveEvent(self, event: Any) -> None:
         """Détecte si la souris survole un des noeuds dessinés."""
         pos = event.position()
         hovered_name = ""

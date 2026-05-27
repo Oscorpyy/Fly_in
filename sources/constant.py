@@ -77,7 +77,7 @@ class Color(IntEnum):
         return QColor(r, g, b, a)
 
     @classmethod
-    def get_qcolor(cls, name: str, default: Any = None) -> QColor:
+    def get_qcolor(cls, name: str, default: Any = None) -> Any:
         """Récupère une couleur QColor par son nom (insensible à la casse)."""
         if default is None:
             default = cls.GRAY

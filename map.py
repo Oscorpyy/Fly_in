@@ -1,6 +1,5 @@
 import random
 import math
-from typing import Any
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
 from PyQt6.QtGui import QVector3D, QColor, QFont, QCursor
@@ -13,8 +12,7 @@ from PyQt6.Qt3DRender import QObjectPicker, QPickingSettings, QPointLight
 class Map3DWidget(QWidget):
     win_trigger = pyqtSignal()
 
-    def __init__(self, map_data: dict[str, Any] | None = None,
-                 parent: QWidget | None = None) -> None:
+    def __init__(self, map_data=None, parent=None):
         super().__init__(parent)
         self.map_data = map_data
 
@@ -124,7 +122,7 @@ class Map3DWidget(QWidget):
 
         # Affichage de la sentibilité sur le mure du haut
         # Variables d'état
-        self.current_sens: float = 0.2
+        self.current_sens: float = 1.00
 
         # --- BLOC CONFIGURATION SENSIBILITÉ ---
         self.sens_board_entity: QEntity = QEntity(self.rootEntity)
@@ -161,15 +159,15 @@ class Map3DWidget(QWidget):
         self.sens_labels: list[QEntity] = []
 
         button_configs: list[tuple[float, str, float]] = [
-            (10.8, "--", -0.1),
-            (9.8, "-", -0.01),
-            (8.8, "+", 0.01),
-            (7.8, "++", 0.1)
+            (10.8, "++", 0.1),
+            (9.8,  "+",  0.01),
+            (8.8,  "-",  -0.01),
+            (7.8,  "--", -0.1)
         ]
 
         self.btn_label_mat: QPhongMaterial = QPhongMaterial()
-        self.btn_label_mat.setDiffuse(QColor("Black"))
-        self.btn_label_mat.setAmbient(QColor("Black"))
+        self.btn_label_mat.setDiffuse(QColor("white"))
+        self.btn_label_mat.setAmbient(QColor("white"))
         self.btn_label_mat.setSpecular(QColor("black"))
         self.btn_label_mat.setShininess(0.0)
 
@@ -181,7 +179,7 @@ class Map3DWidget(QWidget):
             btn_mesh.setZExtent(0.6)
 
             btn_trans: QTransform = QTransform()
-            btn_trans.setTranslation(QVector3D(1.12, 2.4, z_pos))  # boutons
+            btn_trans.setTranslation(QVector3D(1.12, 2.8, z_pos))
 
             picker: QObjectPicker = QObjectPicker()
             picker.clicked.connect(
@@ -202,14 +200,17 @@ class Map3DWidget(QWidget):
 
             lbl_trans: QTransform = QTransform()
             lbl_trans.setRotationY(90.0)
-
-            lbl_trans.setTranslation(QVector3D(1.2, 2.29, z_pos + 0.1))  # signes
-            lbl_trans.setScale(0.25)
+            # Offset Z pour centrer le texte sur le bouton (2 chars = plus large)
+            offset_z: float = -0.14 if len(label) == 2 else -0.07
+            lbl_trans.setTranslation(QVector3D(1.16, 2.66, z_pos + offset_z))
+            lbl_trans.setScale(0.038)
 
             lbl_entity.addComponent(lbl_mesh)
             lbl_entity.addComponent(self.btn_label_mat)
             lbl_entity.addComponent(lbl_trans)
             self.sens_labels.append(lbl_entity)
+
+
 
         # Label: SCORE
         self.score_label_entity = QEntity(self.board_entity)
@@ -309,23 +310,23 @@ class Map3DWidget(QWidget):
         self.crosshair.addComponent(crosshair_mat)
         self.crosshair.addComponent(crosshair_trans)
 
-    def showEvent(self, event: Any) -> None:
+    def showEvent(self, event):
         super().showEvent(event)
         self.container.setFocus()
         self.container.setCursor(Qt.CursorShape.BlankCursor)
         self.setCursor(Qt.CursorShape.BlankCursor)
         QApplication.setOverrideCursor(Qt.CursorShape.BlankCursor)
 
-    def hideEvent(self, event: Any) -> None:
+    def hideEvent(self, event):
         super().hideEvent(event)
         QApplication.restoreOverrideCursor()
         self.container.setCursor(Qt.CursorShape.ArrowCursor)
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
-    def resizeEvent(self, event: Any) -> None:
+    def resizeEvent(self, event):
         super().resizeEvent(event)
 
-    def build_map(self) -> None:
+    def build_map(self):
         wall_mesh = QCuboidMesh()
         wall_mesh.setXExtent(1.0)
         wall_mesh.setYExtent(2.0)
@@ -363,7 +364,7 @@ class Map3DWidget(QWidget):
         floor.addComponent(floor_trans)
         self.entities.append(floor)
 
-    def spawn_aimlab_target(self) -> None:
+    def spawn_aimlab_target(self):
         self.target = QEntity(self.rootEntity)
         mesh = QCuboidMesh()
         mesh.setXExtent(0.5)
@@ -384,11 +385,11 @@ class Map3DWidget(QWidget):
 
         self.place_start_target()
 
-    def place_start_target(self) -> None:
+    def place_start_target(self):
         self.target_material.setDiffuse(QColor("white"))
         self.target_transform.setTranslation(QVector3D(14.0, 2.8, 1.1))
 
-    def place_target(self) -> None:
+    def place_target(self):
         self.target_material.setDiffuse(QColor("cyan"))
         # Spawn uniquement sur la longueur (mur du fond)
         tx = random.uniform(2.0, 23.0)
@@ -396,7 +397,7 @@ class Map3DWidget(QWidget):
         tz = 1.5
         self.target_transform.setTranslation(QVector3D(tx, ty, tz))
 
-    def on_target_clicked(self, pickEvent: Any) -> None:
+    def on_target_clicked(self, pickEvent):
         if not self.game_started:
             self.game_started = True
             self.score = 0
@@ -439,8 +440,7 @@ class Map3DWidget(QWidget):
             self.time_val_mesh.setText(f"{self.time_left:02d}")
 
     def update_sensitivity(self, change: float) -> None:
-        """Met à jour la sensibilité suite à un clic bouton et rafraîchit
-        l'affichage 3D."""
+        """Met à jour la sensibilité suite à un clic bouton et rafraîchit l'affichage 3D."""
         self.current_sens += change
 
         # Sécurité pour ne pas avoir une sensibilité négative ou nulle
@@ -470,6 +470,7 @@ class Map3DWidget(QWidget):
             self.pitch -= dy * self.sensitivity
             self.pitch = max(-89.0, min(89.0, self.pitch))
 
+            # Centrer la souris à nouveau
             QCursor.setPos(center)
 
             pitch_rad = math.radians(self.pitch)
@@ -517,7 +518,7 @@ class Map3DWidget(QWidget):
 
         return super().eventFilter(obj, event)
 
-    def handle_key_press(self, key: Qt.Key) -> None:
+    def handle_key_press(self, key):
         if key == Qt.Key.Key_Escape or key == Qt.Key.Key_Escape.value:
             import os
             QApplication.restoreOverrideCursor()
@@ -526,7 +527,7 @@ class Map3DWidget(QWidget):
 
         self.keys_pressed.add(key)
 
-    def handle_key_release(self, key: Qt.Key) -> None:
+    def handle_key_release(self, key):
         if key in self.keys_pressed:
             self.keys_pressed.remove(key)
         if key == Qt.Key.Key_Escape or key == Qt.Key.Key_Escape.value:
@@ -534,7 +535,7 @@ class Map3DWidget(QWidget):
             QApplication.restoreOverrideCursor()
             os._exit(0)
 
-    def process_movement(self) -> None:
+    def process_movement(self):
         speed = 0.5
         pos = self.camera.position()
         view = self.camera.viewCenter()
@@ -544,16 +545,16 @@ class Map3DWidget(QWidget):
         if hasattr(front, 'normalized'):
             front = front.normalized()
         elif math.hypot(front.x(), front.z()) > 0:
-            length = math.hypot(front.x(), front.z())
-            front = QVector3D(front.x()/length, 0, front.z()/length)
+            l = math.hypot(front.x(), front.z())
+            front = QVector3D(front.x()/l, 0, front.z()/l)
 
         up = QVector3D(0.0, 1.0, 0.0)
         right = QVector3D.crossProduct(front, up)
         if hasattr(right, 'normalized'):
             right = right.normalized()
         elif math.hypot(right.x(), right.z()) > 0:
-            length = math.hypot(right.x(), right.z())
-            right = QVector3D(right.x()/length, 0, right.z()/length)
+            l = math.hypot(right.x(), right.z())
+            right = QVector3D(right.x()/l, 0, right.z()/l)
 
         pressed = set(k if isinstance(
             k, int) else k.value for k in self.keys_pressed)

@@ -2,9 +2,9 @@ from typing import Any
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
 from PyQt6.QtWidgets import QLineEdit, QApplication, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QKeyEvent, QColor
+from PyQt6.QtGui import QColor
 from constant import Color
-from os import sys
+import sys
 
 
 class TerminalInput(QLineEdit):
@@ -14,14 +14,14 @@ class TerminalInput(QLineEdit):
     """
     autocomplete_updated = pyqtSignal(list, int)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.history = []
-        self.history_index = -1
-        self.current_buffer = ""
+        self.history: list[str] = []
+        self.history_index: int = -1
+        self.current_buffer: str = ""
 
         # Liste des commandes pour l'auto-complétion et l'aide
-        self.available_commands = {
+        self.available_commands: dict[str, str] = {
             'help': 'Affiche ce message d\'aide avec la liste des commandes',
             'color help': 'Affiche la liste des zones modifiables avec '
             'la commande color',
@@ -41,10 +41,10 @@ class TerminalInput(QLineEdit):
             'random color auto [sec]': "Modifie les couleurs "
             "aléatoirement (ex: random color auto 5)"
         }
-        self.tab_index = 0
-        self.tab_matches = []
+        self.tab_index: int = 0
+        self.tab_matches: list[str] = []
 
-    def event(self, event) -> bool:
+    def event(self, event: Any) -> bool:
         """
         Surcharger event pour capter la touche TAB avant qu'elle
         ne soit mangée par le système de focus natif de PyQt.
@@ -55,7 +55,7 @@ class TerminalInput(QLineEdit):
             return True
         return super().event(event)
 
-    def handle_tab_completion(self):
+    def handle_tab_completion(self) -> None:
         current_text = self.text()
 
         if not current_text and not self.tab_matches:
@@ -488,7 +488,7 @@ class Terminal(QWidget):
         else:
             super().keyPressEvent(event)
 
-    def eventFilter(self, obj, event) -> bool:
+    def eventFilter(self, obj: Any, event: Any) -> bool:
         from PyQt6.QtCore import QEvent, Qt
         if self.isVisible():
             # 1. Masquer si clic à l'extérieur
