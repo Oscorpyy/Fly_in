@@ -325,6 +325,13 @@ class DroneSimulationWindow(QMainWindow):
                 self.terminal_view.toggle_visibility()
             else:
                 QApplication.quit()
+        elif event.key() == Qt.Key.Key_Space:
+            if hasattr(self, 'graph_view') and hasattr(
+                    self.graph_view, 'animation_timer'):
+                if self.graph_view.animation_timer.isActive():
+                    self.graph_view.animation_timer.stop()
+                else:
+                    self.graph_view.animation_timer.start(16)
         elif event.key() == Qt.Key.Key_P:
             if (hasattr(self.graph_view, 'animation_timer') and
                     self.graph_view.animation_timer.isActive()):
@@ -427,10 +434,9 @@ def main() -> None:
     window.show()
 
     # 3. Lancement de la boucle d'exécution sécurisée
-    try:
-        sys.exit(app.exec())
-    except SystemExit:
-        print("Fermeture de l'interface graphique.")
+    exit_code = app.exec()
+    print("Fermeture de l'interface graphique.")
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

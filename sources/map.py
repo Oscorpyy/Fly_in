@@ -324,7 +324,7 @@ class Map3DWidget(QWidget):
         self.score += 1
         if hasattr(self, 'score_val_mesh'):
             self.score_val_mesh.setText(f"{self.score:02d}")
-        
+
         self.place_target()
 
     def update_game_timer(self):

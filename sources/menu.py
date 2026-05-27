@@ -59,7 +59,8 @@ class MenuWidget(QWidget):
         import random
         all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
         zones = ['menu', 'text', 'menu_bg',
-                 'capacity_bar_bg', 'capacity_bar_ok', 'capacity_bar_overflow']
+                 'capacity_bar_bg', 'capacity_bar_ok', 'capacity_bar_overflow',
+                 'scroll_bar', 'scroll_bar_bg']
         for z in zones:
             self.update_custom_color(z, random.choice(all_colors))
 
@@ -140,7 +141,7 @@ class MenuWidget(QWidget):
         if graph_view:
             is_game = getattr(graph_view, 'game_mode', False)
             has_player = getattr(graph_view, 'player', None)
-            
+
             if is_game and has_player:
                 p_node = graph_view.player.current_node
                 if p_node:
@@ -151,7 +152,7 @@ class MenuWidget(QWidget):
                     assigned_path = graph_view.calculated_paths.get(drone_id)
                     if not assigned_path:
                         continue
-    
+
                     step = drone.get('step', 0)
                     if 0 <= step < len(assigned_path):
                         node = assigned_path[step]
@@ -274,7 +275,16 @@ class MenuWidget(QWidget):
 
                 track_rect = QRect(scrollbar_x, list_rect.top(),
                                    scrollbar_width, list_rect.height())
-                painter.setBrush(QBrush(QColor(0, 0, 0, 150)))
+                # Couleur du fond de scrollbar
+                scroll_bg = Default.SCROLL_BAR_BG.qcolor()
+
+                if 'scroll_bar_bg' in self.custom_colors:
+                    scroll_bg = Color.get_qcolor(
+                        self.custom_colors['scroll_bar_bg'],
+                        default=Default.SCROLL_BAR_BG
+                    )
+
+                painter.setBrush(QBrush(scroll_bg))
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.drawRect(track_rect)
 
@@ -285,7 +295,16 @@ class MenuWidget(QWidget):
 
                 thumb_rect = QRect(scrollbar_x, thumb_y,
                                    scrollbar_width, thumb_h)
-                painter.setBrush(QBrush(QColor(150, 150, 150)))
+                # Couleur du curseur
+                scroll_thumb = Default.SCROLL_BAR.qcolor()
+
+                if 'scroll_bar' in self.custom_colors:
+                    scroll_thumb = Color.get_qcolor(
+                        self.custom_colors['scroll_bar'],
+                        default=Default.SCROLL_BAR
+                    )
+
+                painter.setBrush(QBrush(scroll_thumb))
                 painter.drawRect(thumb_rect)
 
         # --- DESSIN DES INFOS (Côté Droit) ---

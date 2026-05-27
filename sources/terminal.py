@@ -1,6 +1,9 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLineEdit
+from typing import Any
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
+from PyQt6.QtWidgets import QLineEdit, QApplication, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QColor
+from constant import Color
 from os import sys
 
 
@@ -9,6 +12,8 @@ class TerminalInput(QLineEdit):
     Surcharge locale du QLineEdit pour gérer spécifiquement l'historique
     et l'auto-complétion (Tab) avec les flèches du haut et du bas.
     """
+    autocomplete_updated = pyqtSignal(list, int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.history = []
@@ -53,39 +58,44 @@ class TerminalInput(QLineEdit):
     def handle_tab_completion(self):
         current_text = self.text()
 
-        # Si on commence un nouveau cycle de Tab sans texte de base on sort
         if not current_text and not self.tab_matches:
             return
 
-        # Si c'est le début d'une recherche d'auto-complétion
         if not self.tab_matches:
             parts = current_text.split()
             base_cmd = parts[0].lower() if parts else ""
-            
+
             if base_cmd == "color":
                 zones = ["start", "end", "hub", "priority", "restricted",
                          "blocked", "connection", "drone", "background",
                          "menu", "menu_bg", "terminal_bg", "terminal_text",
                          "turn_text", "turn_bg", "capacity_bar_bg",
                          "capacity_bar_ok", "capacity_bar_overflow"]
-                         
+
                 if len(parts) == 1 and current_text.endswith(" "):
                     self.tab_matches = [f"color {z} " for z in zones]
                 elif len(parts) == 2 and not current_text.endswith(" "):
                     prefix = parts[1].lower()
-                    self.tab_matches = [f"color {z} " for z in zones if z.startswith(prefix)]
-                elif (len(parts) == 2 and current_text.endswith(" ")) or (len(parts) == 3 and not current_text.endswith(" ")):
+                    self.tab_matches = [f"color {z} " for z in zones if
+                                        z.startswith(prefix)]
+                elif (len(parts) == 2 and current_text.endswith(" ")) or (
+                        len(parts) == 3 and not current_text.endswith(" ")):
                     prefix = parts[2].lower() if len(parts) == 3 else ""
                     from constant import Color
-                    valid_colors = [c.name.lower() for c in Color if c.name != 'TRANSPARENT'] + ["rainbow"]
-                    self.tab_matches = [f"color {parts[1]} {c}" for c in valid_colors if c.startswith(prefix)]
+                    valid_colors = [c.name.lower() for c in Color if
+                                    c.name != 'TRANSPARENT'] + ["rainbow"]
+                    self.tab_matches = [f"color {parts[1]} {c}" for
+                                        c in valid_colors if
+                                        c.startswith(prefix)]
 
             if not self.tab_matches:
-                self.tab_matches = [cmd for cmd in self.available_commands.keys()
-                                    if cmd.startswith(current_text.lower())]
+                self.tab_matches = [
+                    cmd for cmd in self.available_commands.keys()
+                    if cmd.startswith(current_text.lower())]
             self.tab_index = 0
 
         if self.tab_matches:
+            self.autocomplete_updated.emit(self.tab_matches, self.tab_index)
             # On remplace le texte par le match actuel
             self.setText(self.tab_matches[self.tab_index])
             # On déplace l'index pour le prochain coup de Tab (boucle)
@@ -100,7 +110,7 @@ class TerminalInput(QLineEdit):
         self.current_buffer = ""
         self.tab_matches = []
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: Any) -> None:
         """Intercepte les flèches avant qu'elles ne bougent le curseur."""
         # --- GESTION DES FLÈCHES (Historique) ---
         if event.key() == Qt.Key.Key_Up:
@@ -113,7 +123,9 @@ class TerminalInput(QLineEdit):
             if event.key() not in (Qt.Key.Key_Left, Qt.Key.Key_Right,
                                    Qt.Key.Key_Shift, Qt.Key.Key_Control):
                 self.history_index = len(self.history)
-                self.tab_matches = []
+                if self.tab_matches:
+                    self.tab_matches = []
+                    self.autocomplete_updated.emit([], 0)
             super().keyPressEvent(event)
 
     def navigate_history(self, direction: int) -> None:
@@ -149,12 +161,11 @@ class Terminal(QWidget):
     """
     command_emitted = pyqtSignal(str)
 
-    def __init__(self, parent: QWidget = None) -> None:
+    def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
         self.setVisible(False)
 
         # Installation d'un filtre d'événement global sur l'application
-        from PyQt6.QtWidgets import QApplication
         QApplication.instance().installEventFilter(self)
 
         # Fond semi-transparent
@@ -176,8 +187,19 @@ class Terminal(QWidget):
                                        "font-size: 14px;")
         layout.addWidget(self.output_area)
 
+        # Autocomplétion
+        self.autocomplete_label = QLabel()
+        self.autocomplete_label.setStyleSheet(
+            "color: #FFFFFF; font-family: Consolas, monospace; "
+            "font-size: 12px; background-color: rgba(50, 50, 50, 150); "
+            "padding: 2px;"
+        )
+        self.autocomplete_label.setVisible(False)
+        layout.addWidget(self.autocomplete_label)
+
         # Ligne de commande (Input) customisée pour avoir l'historique
         self.input_area = TerminalInput()
+        self.input_area.autocomplete_updated.connect(self.update_autocomplete)
         self.input_area.setStyleSheet("color: #FFFFFF;"
                                       "background-color: rgba(50, 50, 50,"
                                       "150); border: 1px solid gray;"
@@ -196,8 +218,47 @@ class Terminal(QWidget):
                         "Appuie sur 'Échap' pour masquer."
                         "Tape 'help' pour l'aide.")
 
+    def update_autocomplete(self, matches: list[str], index: int) -> None:
+        """Met à jour l'affichage de l'autocomplétion."""
+        if not matches:
+            self.autocomplete_label.setVisible(False)
+            return
+
+        display_parts: list[str] = []
+        for i, match in enumerate(matches):
+            display_word = match.split(' ')[-1]
+            if display_word == '':
+                display_word = match.split(' ')[-2]
+
+            if i == index:
+                display_parts.append(f"[{display_word}]")
+            else:
+                display_parts.append(display_word)
+
+        total_matches = len(matches)
+
+        if total_matches <= 12:
+            chosen_items = display_parts
+            extra_count = 0
+        else:
+            first_part = display_parts[index:index + 12]
+            needed = 12 - len(first_part)
+
+            if needed > 0:
+                second_part = display_parts[:needed]
+                chosen_items = first_part + second_part
+            else:
+                chosen_items = first_part
+            extra_count = total_matches - 12
+
+        text = "  ".join(chosen_items)
+        if extra_count > 0:
+            text += f" ... (+{extra_count})"
+
+        self.autocomplete_label.setText(text)
+        self.autocomplete_label.setVisible(True)
+
     def update_custom_color(self, zone_type: str, color_val: str) -> None:
-        from constant import Color
         color = Color.get_qcolor(color_val, default=Color.GRAY).name()
         if zone_type == 'terminal_bg':
             self.output_area.setStyleSheet(
@@ -209,6 +270,11 @@ class Terminal(QWidget):
                 f"color: #FFFFFF; background-color: {color}; "
                 "border: 1px solid gray; font-family: Consolas, monospace; "
                 "font-size: 14px; padding: 5px;"
+            )
+            self.autocomplete_label.setStyleSheet(
+                f"color: #FFFFFF; background-color: {color}; "
+                "font-family: Consolas, monospace; font-size: 12px; "
+                "padding: 2px;"
             )
             # update root bg to somewhat match
             palette = self.palette()
@@ -224,6 +290,11 @@ class Terminal(QWidget):
                 f"color: {color}; background-color: rgba(50, 50, 50, 150); "
                 "border: 1px solid gray; font-family: Consolas, monospace; "
                 "font-size: 14px; padding: 5px;"
+            )
+            self.autocomplete_label.setStyleSheet(
+                f"color: {color}; background-color: rgba(50, 50, 50, 150); "
+                "font-family: Consolas, monospace; font-size: 12px; "
+                "padding: 2px;"
             )
 
     def reset_colors(self) -> None:
@@ -285,20 +356,20 @@ class Terminal(QWidget):
         """Un mini-interpréteur de commande, facile à étendre."""
         cmd_lower = command.lower()
 
-        if cmd_lower == 'quit':
+        if cmd_lower in ('quit', 'q'):
             self.toggle_visibility()
 
-        elif cmd_lower == 'clear':
+        elif cmd_lower in ('clear', 'c'):
             self.output_area.clear()
             self.print_line("Console nettoyée.")
 
-        elif cmd_lower == 'help':
+        elif cmd_lower in ('help', 'h'):
             self.print_line("--- COMMANDES DISPONIBLES ---")
             for cmd_name, cmd_desc in self.available_commands.items():
-                self.print_line(f" - {cmd_name.ljust(20)} : {cmd_desc}")
-            self.print_line("-" * 29)
+                self.print_line(f" - {cmd_name.ljust(23)} : {cmd_desc}")
+            self.print_line("-" * 90)
 
-        elif cmd_lower == 'color help':
+        elif cmd_lower in ('color help', 'ch'):
             self.print_line("--- LISTE DES ZONES MODIFIABLES AVEC COLOR_ ---")
             zones = ["start", "end", "hub", "priority", "restricted",
                      "blocked", "connection", "drone", "background", "menu",
@@ -310,7 +381,7 @@ class Terminal(QWidget):
                             " turn_text green")
             self.print_line("-" * 47)
 
-        elif cmd_lower == 'troll':
+        elif cmd_lower in ('troll', 't'):
             self.print_line("Encore un troll ? Non, retourne coder !")
 
         elif cmd_lower.startswith(('map=', 'map ', 'm=', 'm ')):
@@ -390,14 +461,14 @@ class Terminal(QWidget):
                             f"labyrinthe toutes les {delay} secondes...")
             self.toggle_visibility()
 
-        elif cmd_lower == 'kill' or cmd_lower == 'exit':
+        elif cmd_lower in ('kill', 'exit', 'k', 'e'):
             try:
                 sys.exit(0)
             except SystemExit:
                 print("Fermeture de l'interface graphique.")
                 raise
 
-        elif cmd_lower == 'close' or cmd_lower == 'hide':
+        elif cmd_lower in ('close', 'hide', 'cl', 'hi'):
             self.toggle_visibility()
 
         else:

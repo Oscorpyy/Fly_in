@@ -157,6 +157,7 @@ class GraphWidget(QWidget):
         bg_color = Default.BACKGROUND.qcolor()
         palette.setColor(self.backgroundRole(), bg_color)
         self.setPalette(palette)
+        self.print_nb_turns()
         self.update()
 
     def get_neighbors(self, node: str) -> list[str]:
@@ -177,8 +178,6 @@ class GraphWidget(QWidget):
             # Cache les drones
             for drone in self.drones:
                 drone['label'].hide()
-            self.saved_drones = self.drones
-            self.drones = []
             start_node = next((n for n, d in self.hubs.items(
                 ) if d.get('type') == 'start_hub'), next(iter(self.hubs)))
             self.player = Player(start_node)
@@ -361,7 +360,7 @@ class GraphWidget(QWidget):
         """Met à jour le texte et l'apparence de la popup des tours."""
         self.turn_label.setText(f"TOURS : {self.nb_turns}")
 
-        turn_color = "#00FF00"  # default
+        turn_color = Default.TURN.qcolor().name()
         if 'turn_text' in self.custom_colors:
             turn_color = Color.get_qcolor(self.custom_colors['turn_text'],
                                           default=Color.LIME).name()
@@ -391,8 +390,8 @@ class GraphWidget(QWidget):
             self._time_elapsed = 0.0
 
         self._time_elapsed += 16.0
-        if self._time_elapsed >= 500.0:
-            self._time_elapsed -= 500.0
+        if self._time_elapsed >= 512.0:
+            self._time_elapsed -= 512.0
             self.nb_turns += 1
             self.print_nb_turns()
 
@@ -433,7 +432,7 @@ class GraphWidget(QWidget):
 
                 # S'il attend son tour pour démarrer
                 if step < 0:
-                    progress += 16.0 / 500.0
+                    progress += 16.0 / 512.0
                     if progress >= 1.0:
                         progress = 0.0
                         step += 1
@@ -446,10 +445,8 @@ class GraphWidget(QWidget):
                     attrs = h_to.get('attributes', {})
                     if 'restricted' in attrs or 'restricted' in attrs.values():
                         weight = 2.0
-                    elif 'priority' in attrs or 'priority' in attrs.values():
-                        weight = 0.5
 
-                    duration = 500.0 * weight
+                    duration = 512.0 * weight
                     max_cap = 1
                     if 'capacity' in attrs:
                         try:
@@ -462,12 +459,17 @@ class GraphWidget(QWidget):
                         except ValueError:
                             pass
 
-                    if progress == 0.0 and h_to_name != assigned_path[-1]:
-                        if occupied_counts.get(h_to_name, 0) >= max_cap:
+                    if progress == 0.0:
+                        if h_to_name != assigned_path[-1] and \
+                                occupied_counts.get(h_to_name, 0) >= max_cap:
                             pass
                         else:
-                            occupied_counts[h_to_name] = (
-                                occupied_counts.get(h_to_name, 0) + 1)
+                            if h_to_name != assigned_path[-1]:
+                                occupied_counts[h_to_name] = (
+                                    occupied_counts.get(h_to_name, 0) + 1)
+                            curr = assigned_path[step]
+                            if occupied_counts.get(curr, 0) > 0:
+                                occupied_counts[curr] -= 1
                             progress += 16.0 / duration
                     else:
                         progress += 16.0 / duration

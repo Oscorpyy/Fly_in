@@ -102,7 +102,13 @@ class Default():
     TEXT = Color.LIGHT_GRAY
     TERMINAL = Color.GRAY
 
+    # Turns
+    TURN = Color.BLUE
+    TURN_BG = Color.GRAY
+
     # Barres de capacité
     CAPACITY_BAR_BG = Color.DARK_GRAY
     CAPACITY_BAR_OK = Color.LIME_GREEN
     CAPACITY_BAR_OVERFLOW = Color.RED
+    SCROLL_BAR = Color.GRAY
+    SCROLL_BAR_BG = Color.BLACK
