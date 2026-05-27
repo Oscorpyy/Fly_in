@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QFont
+from PyQt6.QtGui import QPainter, QPen, QBrush, QFont
 from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtCore import pyqtSignal
 from constant import Default, Color
@@ -97,27 +97,20 @@ class MenuWidget(QWidget):
 
         pen = QPen(pen_color, pen_thickness)
 
-        # (Optionnel) Pour s'assurer que les coins du rectangle soient bien pointus
         pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(pen)
 
-        # 2. On récupère la taille totale du widget
         rect = self.rect()
 
-        # 3. On ajuste le rectangle vers l'intérieur pour ne pas couper la ligne
         offset = int(pen_thickness / 2)
         outline_rect = rect.adjusted(offset, offset, -offset, -offset)
 
-        # 4. On dessine !
         painter.drawRect(outline_rect)
 
-        # --- SÉPARATION DE LA FENÊTRE EN DEUX ---
         middle_x = int(rect.width() / 2)
-        # On trace un trait vertical de haut en bas au milieu
         painter.drawLine(middle_x, outline_rect.top(), middle_x,
                          outline_rect.bottom())
 
-        # On crée deux zones logiques pour centrer le texte facilement
         left_rect = rect.adjusted(0, 0, -middle_x, 0)
         right_rect = rect.adjusted(middle_x, 0, 0, 0)
 
@@ -126,13 +119,10 @@ class MenuWidget(QWidget):
             text_color = Color.get_qcolor(self.custom_colors['text'],
                                           default=Default.TEXT)
 
-        # --- DESSIN DU GRAPHE DES CAPACITES (Côté Gauche) ---
-        # On calcule les occupations actuelles
-        occupied_counts = {}
-        max_caps = {}
+        occupied_counts: dict[str, int] = {}
+        max_caps: dict[str, int] = {}
 
-        # Recupere les informations du GraphWidget si possible
-        graph_view = None
+        graph_view: Any | None = None
         window = self.window()
         if hasattr(window, 'graph_view'):
             graph_view = window.graph_view

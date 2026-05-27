@@ -1,12 +1,11 @@
-import math
 import random
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication, QLabel
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
-from PyQt6.QtGui import QVector3D, QColor, QCursor, QFont, QQuaternion
+from PyQt6.QtGui import QVector3D, QColor, QFont
 from PyQt6.Qt3DCore import QEntity, QTransform
-from PyQt6.Qt3DExtras import Qt3DWindow, QFirstPersonCameraController, QCuboidMesh, QPhongMaterial, QExtrudedTextMesh
+from PyQt6.Qt3DExtras import QExtrudedTextMesh, Qt3DWindow, QCuboidMesh
+from PyQt6.Qt3DExtras import QPhongMaterial
 from PyQt6.Qt3DRender import QObjectPicker, QPickingSettings, QPointLight
-from PyQt6.QtWidgets import QApplication
 
 
 class Map3DWidget(QWidget):
@@ -31,11 +30,14 @@ class Map3DWidget(QWidget):
         # Configurer le clic (Picking) pour l'Aim Lab
         renderSettings = self.view.renderSettings()
         pickingSettings = renderSettings.pickingSettings()
-        pickingSettings.setPickMethod(QPickingSettings.PickMethod.BoundingVolumePicking)
-        pickingSettings.setPickResultMode(QPickingSettings.PickResultMode.NearestPick)
+        pickingSettings.setPickMethod(
+            QPickingSettings.PickMethod.BoundingVolumePicking)
+        pickingSettings.setPickResultMode(
+            QPickingSettings.PickResultMode.NearestPick)
 
         self.camera = self.view.camera()
-        self.camera.lens().setPerspectiveProjection(60.0, 16.0/9.0, 0.1, 1000.0)
+        self.camera.lens().setPerspectiveProjection(60.0, 16.0/9.0, 0.1,
+                                                    1000.0)
         self.camera.setPosition(QVector3D(3.5, 0.5, 3.5))
         self.camera.setViewCenter(QVector3D(15.0, 0.5, 3.5))
 
@@ -88,7 +90,7 @@ class Map3DWidget(QWidget):
         self.build_map()
 
         self.score = 0
-        self.time_left = 30 # 30 secondes pour le mode Aim Lab
+        self.time_left = 30  # 30 secondes pour le mode Aim Lab
         self.game_started = False
         self.target = None
         self.target_transform = None
@@ -117,7 +119,8 @@ class Map3DWidget(QWidget):
         # Label: SCORE
         self.score_label_entity = QEntity(self.board_entity)
         self.score_label_mesh = QExtrudedTextMesh()
-        self.score_label_mesh.setFont(QFont("monospace", 10, QFont.Weight.Normal))
+        self.score_label_mesh.setFont(QFont("monospace", 10,
+                                            QFont.Weight.Normal))
         self.score_label_mesh.setText("SCORE")
         self.score_label_mesh.setDepth(0.01)
         self.score_label_trans = QTransform()
@@ -131,7 +134,8 @@ class Map3DWidget(QWidget):
         # Label: REMAINING
         self.time_label_entity = QEntity(self.board_entity)
         self.time_label_mesh = QExtrudedTextMesh()
-        self.time_label_mesh.setFont(QFont("monospace", 10, QFont.Weight.Normal))
+        self.time_label_mesh.setFont(QFont("monospace", 10,
+                                           QFont.Weight.Normal))
         self.time_label_mesh.setText("REMAINING")
         self.time_label_mesh.setDepth(0.01)
         self.time_label_trans = QTransform()
@@ -200,11 +204,10 @@ class Map3DWidget(QWidget):
         crosshair_mat = QPhongMaterial()
         crosshair_mat.setDiffuse(QColor("red"))
         crosshair_mat.setAmbient(QColor("red"))
-        crosshair_mat.setSpecular(QColor("black")) # Évite le reflet blanc de la lumière
+        crosshair_mat.setSpecular(QColor("black"))
         crosshair_mat.setShininess(0.0)
 
         crosshair_trans = QTransform()
-        # On place le cube très proche devant la caméra (la caméra regarde vers les Z négatifs)
         crosshair_trans.setTranslation(QVector3D(0.0, 0.0, -1.0))
 
         self.crosshair.addComponent(crosshair_mesh)
@@ -295,7 +298,7 @@ class Map3DWidget(QWidget):
         # Spawn uniquement sur la longueur (mur du fond)
         tx = random.uniform(2.0, 23.0)
         ty = random.uniform(0.1, 1.8)
-        tz = 1.5  # Fixé proche du mur pour qu'ils soient tous sur la même longueur
+        tz = 1.5
         self.target_transform.setTranslation(QVector3D(tx, ty, tz))
 
     def on_target_clicked(self, pickEvent):
@@ -376,8 +379,10 @@ class Map3DWidget(QWidget):
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.KeyPress:
-            key_val = event.key() if isinstance(event.key(), int) else event.key().value
-            if key_val == Qt.Key.Key_Escape.value or key_val == Qt.Key.Key_Escape:
+            key_val = event.key() if isinstance(
+                event.key(), int) else event.key().value
+            if key_val == Qt.Key.Key_Escape.value or \
+                    key_val == Qt.Key.Key_Escape:
                 import os
                 QApplication.restoreOverrideCursor()
                 os._exit(0)
@@ -386,7 +391,8 @@ class Map3DWidget(QWidget):
             return True
 
         elif event.type() == QEvent.Type.KeyRelease:
-            key_val = event.key() if isinstance(event.key(), int) else event.key().value
+            key_val = event.key() if isinstance(
+                event.key(), int) else event.key().value
             if key_val in self.keys_pressed:
                 self.keys_pressed.remove(key_val)
             return True
@@ -432,18 +438,21 @@ class Map3DWidget(QWidget):
             l = math.hypot(right.x(), right.z())
             right = QVector3D(right.x()/l, 0, right.z()/l)
 
-        pressed = set(k if isinstance(k, int) else k.value for k in self.keys_pressed)
+        pressed = set(k if isinstance(
+            k, int) else k.value for k in self.keys_pressed)
 
         move_vec = QVector3D(0.0, 0.0, 0.0)
         moved = False
 
-        if Qt.Key.Key_W.value in pressed or Qt.Key.Key_Up.value in pressed or Qt.Key.Key_Z.value in pressed:
+        if Qt.Key.Key_W.value in pressed or Qt.Key.Key_Up.value in \
+                pressed or Qt.Key.Key_Z.value in pressed:
             move_vec += front * speed
             moved = True
         if Qt.Key.Key_S.value in pressed or Qt.Key.Key_Down.value in pressed:
             move_vec -= front * speed
             moved = True
-        if Qt.Key.Key_A.value in pressed or Qt.Key.Key_Left.value in pressed or Qt.Key.Key_Q.value in pressed:
+        if Qt.Key.Key_A.value in pressed or Qt.Key.Key_Left.value \
+                in pressed or Qt.Key.Key_Q.value in pressed:
             move_vec -= right * speed
             moved = True
         if Qt.Key.Key_D.value in pressed or Qt.Key.Key_Right.value in pressed:
@@ -453,11 +462,14 @@ class Map3DWidget(QWidget):
         if moved:
             def is_wall(x, z):
                 margin = 0.3
-                x_m, x_M = int(math.floor(x - margin)), int(math.floor(x + margin))
-                z_m, z_M = int(math.floor(z - margin)), int(math.floor(z + margin))
+                x_m, x_M = int(math.floor(x - margin)), int(
+                    math.floor(x + margin))
+                z_m, z_M = int(math.floor(z - margin)), int(
+                    math.floor(z + margin))
                 for cz in range(z_m, z_M + 1):
                     for cx in range(x_m, x_M + 1):
-                        if 0 <= cz < len(self.world_map) and 0 <= cx < len(self.world_map[0]):
+                        if 0 <= cz < len(self.world_map) and 0 <= cx < len(
+                                self.world_map[0]):
                             if self.world_map[cz][cx] == '#':
                                 return True
                         else:

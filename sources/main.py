@@ -3,8 +3,6 @@ import signal
 from typing import List, Dict, Any
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QKeyEvent, QCursor
-
 from parsing import get_args
 from parsing_text import parse_map_text
 from output import print_simulation_output

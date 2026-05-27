@@ -481,7 +481,7 @@ class Terminal(QWidget):
         scrollbar = self.output_area.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: Any) -> None:
         """Détecte l'appui de touches lorsque le terminal a le focus."""
         if event.key() == Qt.Key.Key_Escape:
             self.toggle_visibility()
