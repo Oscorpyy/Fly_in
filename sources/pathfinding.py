@@ -2,7 +2,9 @@ from typing import List, Dict, Optional
 
 
 class Zone:
-    """Représente un hub sur la carte."""
+    """
+    Represents a hub or zone on the map.
+    """
     def __init__(self, name: str, z_type: str = "normal", capacity: int = 1):
         self.name: str = name
         self.z_type: str = z_type
@@ -20,34 +22,59 @@ class Zone:
 
 
 class Graph:
-    """Représente le réseau de drones."""
+    """
+    Represents the drone network map as a graph.
+    """
     def __init__(self) -> None:
         self.zones: Dict[str, Zone] = {}
         self.edges: Dict[str, List[str]] = {}
 
     def add_zone(self, zone: Zone) -> None:
+        """
+        Adds a new zone to the graph.
+
+        Args:
+            zone (Zone): The zone to add.
+        """
         self.zones[zone.name] = zone
         if zone.name not in self.edges:
             self.edges[zone.name] = []
 
     def add_connection(self, zone1: str, zone2: str) -> None:
+        """
+        Adds a bidirectional connection between two zones.
+
+        Args:
+            zone1 (str): The name of the first zone.
+            zone2 (str): The name of the second zone.
+        """
         if zone1 in self.edges and zone2 in self.edges:
             self.edges[zone1].append(zone2)
             self.edges[zone2].append(zone1)
         else:
-            print(f"⚠️ Attention: Impossible de relier {zone1} et {zone2}"
-                  f"(Hub manquant sur la carte)")
+            print(f"⚠️ Warning: Cannot connect {zone1} et {zone2}"
+                  f"(Missing hub on map)")
 
 
 class PathFinder:
-    """Gère la logique de recherche de chemins."""
+    """
+    Handles pathfinding logic to route drones through the graph.
+    """
     def __init__(self, graph: Graph):
         self.graph: Graph = graph
 
     def find_all_paths(self, start: str, end: str) -> List[List[str]]:
-        """Recherche en largeur (BFS) pour trouver les chemins plus courts et
-        simples, sans s'enfoncer dans une branche infinie comme le ferait
-        un DFS."""
+        """
+        Performs a Breadth-First Search (BFS) to find the shortest
+        and simplest paths.
+
+        Args:
+            start (str): The starting node.
+            end (str): The ending node.
+
+        Returns:
+            List[List[str]]: A list of all found paths, ordered by weight.
+        """
         all_paths = []
         queue = [(start, [start])]
 
@@ -55,7 +82,7 @@ class PathFinder:
             current, path = queue.pop(0)
             if current == end:
                 all_paths.append(path)
-                # On augmente la limite pour trouver les chemins plus efficient
+                # Increase the limit to find more efficient paths
                 if len(all_paths) > 200:
                     break
                 continue
@@ -72,6 +99,17 @@ class PathFinder:
         return all_paths
 
     def find_shortest_path(self, start: str, end: str) -> Optional[List[str]]:
+        """
+        Finds the single shortest path between two nodes.
+
+        Args:
+            start (str): The starting node.
+            end (str): The ending node.
+
+        Returns:
+            Optional[List[str]]: The shortest path as a list of nodes, or
+            None if no path is found.
+        """
         paths = self.find_all_paths(start, end)
         if paths:
             return paths[0]
@@ -80,9 +118,16 @@ class PathFinder:
     def dispatch_drones(self, start: str, end: str,
                         nb_drones: int) -> Dict[int, List[str]]:
         """
-        Répartit les drones en évitant activement qu'ils se bloquent sur les
-         mêmes nœuds.
-        Chaque drone assigné rend son chemin plus "cher" pour le suivant.
+        Dispatches drones avoiding congestion at specific nodes.
+
+        Args:
+            start (str): The starting node.
+            end (str): The ending node.
+            nb_drones (int): The number of drones to dispatch.
+
+        Returns:
+            Dict[int, List[str]]: A dictionary mapping each drone ID to
+            its assigned path.
         """
         all_paths = self.find_all_paths(start, end)
         drone_assignments: Dict[int, List[str]] = {}

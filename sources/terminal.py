@@ -10,8 +10,7 @@ import sys
 
 class TerminalInput(QLineEdit):
     """
-    Surcharge locale du QLineEdit pour gérer spécifiquement l'historique
-    et l'auto-complétion (Tab) avec les flèches du haut et du bas.
+    Custom QLineEdit that handles terminal input, history, and autocomplete.
     """
     autocomplete_updated = pyqtSignal(list, int)
 
@@ -21,7 +20,7 @@ class TerminalInput(QLineEdit):
         self.history_index: int = -1
         self.current_buffer: str = ""
 
-        # Liste des commandes pour l'auto-complétion et l'aide
+        # Command list for autocomplete and help
         self.available_commands: dict[str, str] = {
             'help': 'Affiche ce message d\'aide avec la liste des commandes',
             'color help': 'Affiche la liste des zones modifiables avec '
@@ -51,6 +50,15 @@ class TerminalInput(QLineEdit):
 
     def event(self, event: Any) -> bool:
         """
+        Handles specific events, such as filtering Tab key presses.
+
+        Args:
+            event (Any): The event to handle.
+
+        Returns:
+            bool: True if event was handled, False otherwise.
+        """
+        """
         Surcharger event pour capter la touche TAB avant qu'elle
         ne soit mangée par le système de focus natif de PyQt.
         """
@@ -61,6 +69,9 @@ class TerminalInput(QLineEdit):
         return super().event(event)
 
     def handle_tab_completion(self) -> None:
+        """
+        Handles autocomplete logic when the Tab key is pressed.
+        """
         current_text = self.text()
 
         if not current_text and not self.tab_matches:
@@ -112,6 +123,15 @@ class TerminalInput(QLineEdit):
             self.tab_index = (self.tab_index + 1) % len(self.tab_matches)
 
     def _build_map_matches(self, current_text: str) -> list[str]:
+        """
+        Builds a list of map file matches for autocomplete.
+
+        Args:
+            current_text (str): The current text in the input.
+
+        Returns:
+            list[str]: A list of matching map paths.
+        """
         clean_text = current_text.lower().replace(" ", "")
         if clean_text.startswith("m="):
             clean_text = "map=" + clean_text[2:]
@@ -142,6 +162,12 @@ class TerminalInput(QLineEdit):
         return matches
 
     def _get_map_folders(self) -> list[str]:
+        """
+        Retrieves the list of available map folders.
+
+        Returns:
+            list[str]: A list of folder names.
+        """
         if not os.path.isdir(self.map_root):
             return []
 
@@ -151,6 +177,15 @@ class TerminalInput(QLineEdit):
         )
 
     def _get_map_files(self, folder: str) -> list[str]:
+        """
+        Retrieves the list of map files within a specific folder.
+
+        Args:
+            folder (str): The folder to search.
+
+        Returns:
+            list[str]: A list of map file names.
+        """
         folder_path = os.path.join(self.map_root, folder)
         if not os.path.isdir(folder_path):
             return []
@@ -166,6 +201,12 @@ class TerminalInput(QLineEdit):
         return file_names
 
     def add_to_history(self, command: str) -> None:
+        """
+        Adds a command to the terminal history.
+
+        Args:
+            command (str): The command to add.
+        """
         """Ajoute une commande à l'historique si
         elle est valide et différente de la précédente."""
         if command and (not self.history or self.history[-1] != command):
@@ -175,6 +216,12 @@ class TerminalInput(QLineEdit):
         self.tab_matches = []
 
     def keyPressEvent(self, event: Any) -> None:
+        """
+        Handles key press events (Up/Down for history, etc.).
+
+        Args:
+            event (Any): The key press event.
+        """
         """Intercepte les flèches avant qu'elles ne bougent le curseur."""
         # --- GESTION DES FLÈCHES (Historique) ---
         if event.key() == Qt.Key.Key_Up:
@@ -193,6 +240,12 @@ class TerminalInput(QLineEdit):
             super().keyPressEvent(event)
 
     def navigate_history(self, direction: int) -> None:
+        """
+        Navigates through the command history.
+
+        Args:
+            direction (int): Direction (-1 for up, 1 for down).
+        """
         """Navigue dans l'historique vers le haut (-1) ou vers le bas (+1)."""
         if not self.history:
             return
@@ -212,7 +265,7 @@ class TerminalInput(QLineEdit):
 
         self.history_index = new_index
 
-        # Si on redescend tout en bas, on restaure le brouillon
+        # If we go back to the bottom, restore the buffer
         if self.history_index == len(self.history):
             self.setText(self.current_buffer)
         else:
@@ -221,7 +274,7 @@ class TerminalInput(QLineEdit):
 
 class Terminal(QWidget):
     """
-    Terminal en surimpression (overlay) pour afficher et entrer des commandes.
+    Overlay widget that provides a terminal interface for commands.
     """
     command_emitted = pyqtSignal(str)
 
@@ -229,10 +282,12 @@ class Terminal(QWidget):
         super().__init__(parent)
         self.setVisible(False)
 
-        # Installation d'un filtre d'événement global sur l'application
-        QApplication.instance().installEventFilter(self)
+        # Install a global event filter on the application
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
 
-        # Fond semi-transparent
+        # Semi-transparent background
         self.setAutoFillBackground(True)
         palette = self.palette()
         palette.setColor(self.backgroundRole(), QColor(0, 0, 0, 200))
@@ -283,6 +338,13 @@ class Terminal(QWidget):
                         "Tape 'help' pour l'aide.")
 
     def update_autocomplete(self, matches: list[str], index: int) -> None:
+        """
+        Updates the autocomplete suggestion display.
+
+        Args:
+            matches (list[str]): The list of matched commands.
+            index (int): The current highlighted index.
+        """
         """Met à jour l'affichage de l'autocomplétion."""
         if not matches:
             self.autocomplete_label.setVisible(False)
@@ -323,6 +385,13 @@ class Terminal(QWidget):
         self.autocomplete_label.setVisible(True)
 
     def update_custom_color(self, zone_type: str, color_val: str) -> None:
+        """
+        Updates custom colors for the terminal UI.
+
+        Args:
+            zone_type (str): The UI component to color.
+            color_val (str): The color to apply.
+        """
         color = Color.get_qcolor(color_val, default=Color.GRAY).name()
         if zone_type == 'terminal_bg':
             self.output_area.setStyleSheet(
@@ -362,6 +431,9 @@ class Terminal(QWidget):
             )
 
     def reset_colors(self) -> None:
+        """
+        Resets all terminal colors to default.
+        """
         self.output_area.setStyleSheet(
             "color: #FFFFFF; background-color: transparent; "
             "border: none; font-family: Consolas, monospace; font-size: 14px;"
@@ -376,6 +448,9 @@ class Terminal(QWidget):
         self.setPalette(palette)
 
     def randomize_colors(self) -> None:
+        """
+        Randomizes all terminal colors.
+        """
         import random
         from constant import Color
         all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
@@ -383,12 +458,16 @@ class Terminal(QWidget):
         self.update_custom_color('terminal_text', random.choice(all_colors))
 
     def toggle_visibility(self) -> None:
+        """
+        Toggles the terminal visibility.
+        """
         """Affiche ou masque le terminal (comme sur Minecraft)."""
         if self.isVisible():
             self.hide()
             # Rend le focus à la fenêtre principale
-            if self.parent():
-                self.parent().setFocus()
+            parent = self.parentWidget()
+            if parent is not None:
+                parent.setFocus()
         else:
             self.show()
             self.resize_to_parent()
@@ -396,15 +475,22 @@ class Terminal(QWidget):
             self.input_area.clear()
 
     def resize_to_parent(self) -> None:
+        """
+        Resizes the terminal widget to match its parent container.
+        """
         """Ajuste la taille du terminal pour
         qu'il prenne le bas de la fenêtre."""
-        if self.parent():
-            parent_rect = self.parent().rect()
+        parent = self.parentWidget()
+        if parent is not None:
+            parent_rect = parent.rect()
             height = parent_rect.height() // 3
             self.setGeometry(0, parent_rect.height() - height,
                              parent_rect.width(), height)
 
     def process_command(self) -> None:
+        """
+        Processes the command currently entered in the input field.
+        """
         """Appelée quand l'utilisateur fait 'Entrée'."""
         command = self.input_area.text().strip()
         if command:
@@ -417,6 +503,12 @@ class Terminal(QWidget):
         self.input_area.clear()
 
     def execute_command(self, command: str) -> None:
+        """
+        Executes a specific command and emits it to the main window.
+
+        Args:
+            command (str): The command to execute.
+        """
         """Un mini-interpréteur de commande, facile à étendre."""
         cmd_lower = command.lower()
 
@@ -539,13 +631,26 @@ class Terminal(QWidget):
             self.print_line(f"Commande inconnue : {command}")
 
     def print_line(self, text: str) -> None:
+        """
+        Prints a line of text to the terminal log area.
+
+        Args:
+            text (str): The text to print.
+        """
         """Pratique pour écrire des logs de l'extérieur vers ce terminal."""
         self.output_area.append(text)
         # Force la barre de défilement tout en bas
         scrollbar = self.output_area.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+        if scrollbar is not None:
+            scrollbar.setValue(scrollbar.maximum())
 
     def keyPressEvent(self, event: Any) -> None:
+        """
+        Handles key press events (Up/Down for history, etc.).
+
+        Args:
+            event (Any): The key press event.
+        """
         """Détecte l'appui de touches lorsque le terminal a le focus."""
         if event.key() == Qt.Key.Key_Escape:
             self.toggle_visibility()
@@ -553,6 +658,16 @@ class Terminal(QWidget):
             super().keyPressEvent(event)
 
     def eventFilter(self, obj: Any, event: Any) -> bool:
+        """
+        Filters application events to capture specific inputs like Escape.
+
+        Args:
+            obj (Any): The watched object.
+            event (Any): The event.
+
+        Returns:
+            bool: True if the event is blocked, False otherwise.
+        """
         from PyQt6.QtCore import QEvent, Qt
         if self.isVisible():
             # 1. Masquer si clic à l'extérieur

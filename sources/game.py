@@ -3,11 +3,31 @@ from typing import Dict, Any, List
 
 
 class Player:
+    """Represents a player in the game mode."""
     def __init__(self, start_node: str):
+        """
+        Initializes the Player with a starting node.
+
+        Args:
+            start_node (str): The starting node ID.
+        """
         self.current_node = start_node
 
     def move(self, direction: str, current_x: float, current_y: float,
              neighbors: List[str], hubs: Dict[str, Any]) -> bool:
+        """
+        Moves the player in a given direction based on neighboring hubs.
+
+        Args:
+            direction (str): The requested movement direction.
+            current_x (float): Current X coordinate.
+            current_y (float): Current Y coordinate.
+            neighbors (List[str]): List of neighbor node IDs.
+            hubs (Dict[str, Any]): Dictionary containing hub information.
+
+        Returns:
+            bool: True if the movement was successful, False otherwise.
+        """
         best_neighbor = None
         # We want the max projection (closest to +1.0)
         best_score = -2.0

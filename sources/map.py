@@ -11,6 +11,9 @@ from PyQt6.Qt3DRender import QObjectPicker, QPickingSettings, QPointLight
 
 
 class Map3DWidget(QWidget):
+    """
+    3D Map representation widget containing the FPS game mode.
+    """
     win_trigger = pyqtSignal()
     command_emitted = pyqtSignal(str)
 
@@ -19,31 +22,38 @@ class Map3DWidget(QWidget):
         super().__init__(parent)
         self.map_data = map_data
 
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.view = Qt3DWindow()
-        self.view.defaultFrameGraph().setClearColor(QColor("#1a1a24"))
+        default_frame_graph = self.view.defaultFrameGraph()
+        if default_frame_graph is not None:
+            default_frame_graph.setClearColor(QColor("#1a1a24"))
 
         self.container = QWidget.createWindowContainer(self.view)
-        self.layout.addWidget(self.container)
+        self.main_layout.addWidget(self.container)
 
         self.rootEntity = QEntity()
         self.view.setRootEntity(self.rootEntity)
 
         # Configurer le clic (Picking) pour l'Aim Lab
         renderSettings = self.view.renderSettings()
-        pickingSettings = renderSettings.pickingSettings()
-        pickingSettings.setPickMethod(
-            QPickingSettings.PickMethod.BoundingVolumePicking)
-        pickingSettings.setPickResultMode(
-            QPickingSettings.PickResultMode.NearestPick)
+        if renderSettings is not None:
+            pickingSettings = renderSettings.pickingSettings()
+            if pickingSettings is not None:
+                pickingSettings.setPickMethod(
+                    QPickingSettings.PickMethod.BoundingVolumePicking)
+                pickingSettings.setPickResultMode(
+                    QPickingSettings.PickResultMode.NearestPick)
 
         self.camera = self.view.camera()
-        self.camera.lens().setPerspectiveProjection(60.0, 16.0/9.0, 0.1,
-                                                    1000.0)
-        self.camera.setPosition(QVector3D(3.5, 0.5, 3.5))
-        self.camera.setViewCenter(QVector3D(15.0, 0.5, 3.5))
+        if self.camera is not None:
+            lens = self.camera.lens()
+            if lens is not None:
+                lens.setPerspectiveProjection(60.0, 16.0/9.0, 0.1,
+                                              1000.0)
+            self.camera.setPosition(QVector3D(3.5, 0.5, 3.5))
+            self.camera.setViewCenter(QVector3D(15.0, 0.5, 3.5))
 
         self.sensitivity = 0.2
         self.mouse_captured = True
@@ -56,7 +66,7 @@ class Map3DWidget(QWidget):
         self.lightEntity.addComponent(self.light)
 
         # Plus de QFirstPersonCameraController, on gère 100% à la main.
-        self.keys_pressed = set()
+        self.keys_pressed: set[int] = set()
         self.move_timer = QTimer(self)
         self.move_timer.timeout.connect(self.process_movement)
         self.move_timer.start(16)
@@ -100,8 +110,8 @@ class Map3DWidget(QWidget):
         self.best_score = 0
         self.time_left = 30  # 30 secondes pour le mode Aim Lab
         self.game_started = False
-        self.target = None
-        self.target_transform = None
+        self.target: QEntity | None = None
+        self.target_transform: QTransform | None = None
         self.target_base_x = 14.0
         self.target_base_y = 2.8
         self.target_base_z = 1.1
@@ -476,13 +486,14 @@ class Map3DWidget(QWidget):
         self.target_material.setDiffuse(QColor("magenta"))
 
         self.target_transform = QTransform()
-        self.target.addComponent(mesh)
-        self.target.addComponent(self.target_material)
-        self.target.addComponent(self.target_transform)
+        if self.target is not None:
+            self.target.addComponent(mesh)
+            self.target.addComponent(self.target_material)
+            self.target.addComponent(self.target_transform)
 
-        self.picker = QObjectPicker()
-        self.picker.clicked.connect(self.on_target_clicked)
-        self.target.addComponent(self.picker)
+            self.picker = QObjectPicker()
+            self.picker.clicked.connect(self.on_target_clicked)
+            self.target.addComponent(self.picker)
 
         self.place_start_target()
 
@@ -499,10 +510,11 @@ class Map3DWidget(QWidget):
         self.target_move_speed = 2.4
         self.target_speed_target = 2.4
         self.target_speed_change_timer = 0.8
-        self.target_transform.setTranslation(
-            QVector3D(self.target_base_x, self.target_base_y,
-                      self.target_base_z)
-        )
+        if self.target_transform is not None:
+            self.target_transform.setTranslation(
+                QVector3D(self.target_base_x, self.target_base_y,
+                          self.target_base_z)
+            )
 
     def reset_to_base_project(self) -> None:
         self.game_timer.stop()
@@ -544,10 +556,11 @@ class Map3DWidget(QWidget):
         self.target_move_speed = random.uniform(1.2, 4.0)
         self.target_speed_target = self.target_move_speed
         self.target_speed_change_timer = random.uniform(0.4, 1.3)
-        self.target_transform.setTranslation(
-            QVector3D(self.target_base_x, self.target_base_y,
-                      self.target_base_z)
-        )
+        if self.target_transform is not None:
+            self.target_transform.setTranslation(
+                QVector3D(self.target_base_x, self.target_base_y,
+                          self.target_base_z)
+            )
 
     def update_target_motion(self) -> None:
         if not self.game_started or self.target_transform is None:
@@ -610,7 +623,7 @@ class Map3DWidget(QWidget):
 
         self.place_target()
 
-    def update_game_timer(self):
+    def update_game_timer(self) -> None:
         self.time_left -= 1
         if self.time_left <= 0:
             self.game_timer.stop()
@@ -657,7 +670,7 @@ class Map3DWidget(QWidget):
         # Met à jour le texte du mesh (avec un formatage strict à 2 décimales)
         self.sens_title_mesh.setText(f"Sensibilite: {self.current_sens:.2f}")
 
-    def process_mouse(self):
+    def process_mouse(self) -> None:
         try:
             if not self.isVisible() or not self.mouse_captured:
                 return
@@ -683,12 +696,13 @@ class Map3DWidget(QWidget):
             fy = math.sin(pitch_rad)
             fz = math.cos(pitch_rad) * math.sin(yaw_rad)
 
-            pos = self.camera.position()
-            self.camera.setViewCenter(pos + QVector3D(fx, fy, fz))
+            if self.camera is not None:
+                pos = self.camera.position()
+                self.camera.setViewCenter(pos + QVector3D(fx, fy, fz))
         except Exception:
             pass
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: Any, event: Any) -> bool:
         if event.type() == QEvent.Type.KeyPress:
             key_val = event.key() if isinstance(
                 event.key(), int) else event.key().value
@@ -743,6 +757,8 @@ class Map3DWidget(QWidget):
             os._exit(0)
 
     def process_movement(self) -> None:
+        if self.camera is None:
+            return
         self.update_target_motion()
 
         speed = 0.5
@@ -787,7 +803,7 @@ class Map3DWidget(QWidget):
             moved = True
 
         if moved:
-            def is_wall(x, z):
+            def is_wall(x: float, z: float) -> bool:
                 margin = 0.3
                 x_m, x_M = int(math.floor(x - margin)), int(
                     math.floor(x + margin))
@@ -821,12 +837,15 @@ class Map3DWidget(QWidget):
 
     def update_score_display(self, current_score: int) -> None:
         """Met à jour le texte complet du score."""
-        self.score_mesh.setText(f"Score: {current_score}")
+        if hasattr(self, 'score_val_mesh'):
+            self.score_val_mesh.setText(f"{current_score:02d}")
 
     def update_time_display(self, current_time: float) -> None:
         """Met à jour le texte complet du temps."""
-        self.time_mesh.setText(f"Time: {current_time:.1f}s")
+        if hasattr(self, 'time_val_mesh'):
+            self.time_val_mesh.setText(f"{int(current_time):02d}")
 
     def update_best_score_display(self, best_score: int) -> None:
         """Met à jour le texte complet du meilleur score."""
-        self.best_score_mesh.setText(f"Best Score: {best_score}")
+        if hasattr(self, 'best_val_mesh'):
+            self.best_val_mesh.setText(f"{best_score:02d}")

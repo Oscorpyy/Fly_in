@@ -4,6 +4,7 @@ import os
 from typing import List, Dict, Any
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
+from PyQt6.QtCore import QtMsgType, QMessageLogContext
 from parsing import get_args
 from parsing_text import parse_map_text
 from output import print_simulation_output
@@ -15,22 +16,35 @@ from map import Map3DWidget
 from PyQt6.QtCore import QTimer
 
 
-def _qt_log_filter(mode, context, message) -> None:
-    """Filtre les logs Qt bruyants non critiques."""
+def _qt_log_filter(mode: QtMsgType, context: QMessageLogContext,
+                   message: str | None) -> None:
+    """
+    Filters noisy non-critical Qt logs.
+    """
+    if message is None:
+        return
     if "Qt3D.Renderer.RHI.Backend" in message:
         return
 
-    # Fallback minimal pour conserver les autres logs Qt.
-    # (écrit sur stderr comme le handler Qt par défaut)
+    # Minimal fallback to keep other Qt logs.
+    # (writes to stderr like default Qt handler)
     print(message, file=sys.stderr)
 
 
 class DroneSimulationWindow(QMainWindow):
-    """Fenêtre principale pour la simulation des drones."""
+    """
+    Main window for the drone simulation application.
+    """
 
     def __init__(self, map_data: Dict[str, Any]) -> None:
+        """
+        Initializes the Main window.
+
+        Args:
+            map_data (Dict[str, Any]): Parsed map data.
+        """
         super().__init__()
-        # On s'assure que le curseur par défaut est là
+        # Ensure default cursor is visible
         QApplication.restoreOverrideCursor()
 
         # Timer pour le mode random auto
@@ -92,10 +106,17 @@ class DroneSimulationWindow(QMainWindow):
         self.movement_timer.timeout.connect(self.process_movement)
 
     def process_movement(self) -> None:
+        """
+        Processes drone movement logic for the current turn.
+        """
         if getattr(self.graph_view, 'game_mode', False) and self.keys_pressed:
-            self.graph_view.handle_movement_keys(self.keys_pressed)
+            keys: set[Qt.Key] = {Qt.Key(k) for k in self.keys_pressed}
+            self.graph_view.handle_movement_keys(keys)
 
     def transition_to_2d_graph(self) -> None:
+        """
+        Transitions the view back to the 2D graph.
+        """
         """Ramène au menu normal après le jeu."""
         if hasattr(self, 'map_3d_view'):
             self.map_3d_view.hide()
@@ -106,6 +127,9 @@ class DroneSimulationWindow(QMainWindow):
             self.menu_view.show()
 
     def trigger_blackout(self) -> None:
+        """
+        Triggers a visual blackout effect.
+        """
         """Affiche la Map 3D raycaster pour le Konami code."""
         if hasattr(self, 'graph_view'):
             self.graph_view.hide()
@@ -186,8 +210,9 @@ class DroneSimulationWindow(QMainWindow):
                 self.menu_view.show()
             if hasattr(self, 'map_3d_view'):
                 self.map_3d_view.hide()
-            if self.centralWidget():
-                self.centralWidget().setStyleSheet("")
+            central = self.centralWidget()
+            if central is not None:
+                central.setStyleSheet("")
             self.setStyleSheet("")
 
         elif cmd == 'random color':
@@ -229,6 +254,9 @@ class DroneSimulationWindow(QMainWindow):
                     self.trigger_randomize()
 
     def trigger_randomize(self) -> None:
+        """
+        Randomizes colors across all widgets.
+        """
         if hasattr(self.graph_view, 'randomize_colors'):
             self.graph_view.randomize_colors()
         if hasattr(self.menu_view, 'randomize_colors'):
@@ -310,19 +338,20 @@ class DroneSimulationWindow(QMainWindow):
 
         # --- REMPLACEMENT DES WIDGETS ---
         central = self.centralWidget()
-        layout = central.layout()
+        if central is not None:
+            layout = central.layout()
+            if layout is not None:
+                layout.removeWidget(self.graph_view)
+                self.graph_view.deleteLater()
 
-        layout.removeWidget(self.graph_view)
-        self.graph_view.deleteLater()
+                layout.removeWidget(self.menu_view)
+                self.menu_view.deleteLater()
 
-        layout.removeWidget(self.menu_view)
-        self.menu_view.deleteLater()
+                self.graph_view = GraphWidget(new_map_data, self)
+                self.menu_view = MenuWidget(new_map_data, self)
 
-        self.graph_view = GraphWidget(new_map_data, self)
-        self.menu_view = MenuWidget(new_map_data, self)
-
-        layout.addWidget(self.graph_view)
-        layout.addWidget(self.menu_view)
+                layout.addWidget(self.graph_view)
+                layout.addWidget(self.menu_view)
 
         self.graph_view.node_hovered.connect(self.menu_view.on_node_hovered)
 
@@ -330,6 +359,12 @@ class DroneSimulationWindow(QMainWindow):
         self.update()
 
     def keyPressEvent(self, event: Any) -> None:
+        """
+        Handles main window key press events.
+
+        Args:
+            event (Any): The key press event.
+        """
         """Gère les événements clavier (ex: Echap pour quitter)."""
         if not event.isAutoRepeat():
             self.keys_pressed.add(event.key())
@@ -420,6 +455,12 @@ class DroneSimulationWindow(QMainWindow):
             super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event: Any) -> None:
+        """
+        Handles main window key release events.
+
+        Args:
+            event (Any): The key release event.
+        """
         if hasattr(self, 'map_3d_view') and self.map_3d_view.isVisible():
             self.map_3d_view.handle_key_release(event.key())
 
@@ -427,7 +468,13 @@ class DroneSimulationWindow(QMainWindow):
             self.keys_pressed.remove(event.key())
         super().keyReleaseEvent(event)
 
-    def resizeEvent(self, event) -> None:
+    def resizeEvent(self, event: Any) -> None:
+        """
+        Handles resizing of the main window and overlays.
+
+        Args:
+            event (Any): The resize event.
+        """
         """Gère le redimensionnement de la fenêtre."""
         super().resizeEvent(event)
         # On s'assure que le terminal se repositionne correctement en bas
@@ -436,6 +483,9 @@ class DroneSimulationWindow(QMainWindow):
 
 
 def main() -> None:
+    """
+    Main application entry point.
+    """
     # Renfort: règle d'environnement lue par Qt logging.
     current_rules = os.environ.get("QT_LOGGING_RULES", "")
     extra_rule = "Qt3D.Renderer.RHI.Backend=false"
@@ -511,9 +561,13 @@ def main() -> None:
     window: DroneSimulationWindow = DroneSimulationWindow(map_data)
     window.show()
 
-    # 3. Lancement de la boucle d'exécution sécurisée
-    exit_code = app.exec()
-    print("Fermeture de l'interface graphique.")
+    # 3. Safe execution loop launch
+    try:
+        exit_code = app.exec()
+    except Exception as e:
+        print(f"Unhandled exception occurred during execution: {e}")
+        exit_code = 1
+    print("Closing graphical interface.")
     sys.exit(exit_code)
 
 

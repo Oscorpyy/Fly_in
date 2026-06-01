@@ -6,11 +6,14 @@ from typing import Dict, Any
 
 def get_map_path_from_arg(arg: str) -> str:
     """
-    Résout le chemin du fichier map en fonction de l'argument.
-    Peut être :
-    - Un chemin direct vers un fichier
-     (ex: maps/challenger/01_the_impossible_dream.txt)
-    - Un raccourci 'dossier_numero' (ex: challenger_01)
+    Resolves the map file path based on the given argument.
+
+    Args:
+        arg (str): The input argument, which can be a direct path
+        or a shortcut.
+
+    Returns:
+        str: The resolved absolute file path, or an empty string if not found.
     """
     # 1. Vérifie si le fichier existe directement
     if os.path.isfile(arg):
@@ -28,24 +31,25 @@ def get_map_path_from_arg(arg: str) -> str:
         # Pattern de recherche: Fly_in/maps/{folder}/{numero}_*.txt
         search_pattern = os.path.join(base_dir, "maps", folder,
                                       f"{numero}_*.txt")
-        matches = glob.glob(search_pattern)
-
-        if matches:
-            return matches[0]
+        try:
+            matches = glob.glob(search_pattern)
+            if matches:
+                return matches[0]
+        except Exception:
+            pass
 
     return ""
 
 
 def get_args() -> Dict[str, Any]:
     """
-    Parse les arguments de la ligne de commande, attend le chemin vers
-    le fichier de map
-    ou un raccourci de type 'dossier_numero'.
-    Vérifie la présence et la validité du fichier.
-    Retourne un dictionnaire contenant au moins la clé 'map_path'.
+    Parses command-line arguments to retrieve the map path.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the resolved 'map_path'.
     """
     if len(sys.argv) != 2:
-        print("Erreur: Nombre d'arguments invalide.")
+        print("Error: Invalid number of arguments.")
         print("Usage: python main.py <chemin_vers_map.txt> OU "
               "<dossier>_<numero> (ex: challenger_01)")
         sys.exit(1)
@@ -54,7 +58,7 @@ def get_args() -> Dict[str, Any]:
     resolved_path = get_map_path_from_arg(input_arg)
 
     if not resolved_path or not os.path.exists(resolved_path):
-        print(f"Erreur: Impossible de trouver la carte pour l'argument"
+        print(f"Error: Unable to find map for argument"
               f"'{input_arg}'.")
         sys.exit(1)
 
@@ -63,7 +67,7 @@ def get_args() -> Dict[str, Any]:
     }
 
     if not args_dict.get('map_path'):
-        print("Erreur: Le dictionnaire ne contient pas le 'map_path'.")
+        print("Error: Dictionary does not contain 'map_path'.")
         sys.exit(1)
 
     return args_dict

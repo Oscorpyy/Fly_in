@@ -10,13 +10,26 @@ from game import Player
 
 class GraphWidget(QWidget):
     """
-    Widget personnalisé chargé de dessiner le graphe de la simulation
-    en fonction des données parsées.
+    Custom widget for drawing the simulation graph.
     """
     node_hovered = pyqtSignal(str)
 
     def __init__(self, map_data: Dict[str, Any],
                  parent: Any = None) -> None:
+        """
+        Initializes the GraphWidget.
+
+        Args:
+            map_data (Dict[str, Any]): Parsed map data.
+            parent (Any, optional): Parent widget. Defaults to None.
+        """
+        """
+        Initializes the GraphWidget.
+
+        Args:
+            map_data (Dict[str, Any]): Parsed map data.
+            parent (Any, optional): Parent widget. Defaults to None.
+        """
         super().__init__(parent)
         self.setMouseTracking(True)
         self.map_data = map_data
@@ -30,10 +43,10 @@ class GraphWidget(QWidget):
         self.turn_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.print_nb_turns()
 
-        # Récupération des chemins (si calculés)
+        # Retrieve calculated paths
         self.calculated_paths = map_data.get('calculated_paths', {})
 
-        # Pour stocker les positions des noeuds à l'écran
+        # To store screen node positions
         self._drawn_nodes: Any = {}
         self._last_hovered = ""
         self._pinned_node = ""
@@ -44,7 +57,7 @@ class GraphWidget(QWidget):
         palette.setColor(self.backgroundRole(), bg_color)
         self.setPalette(palette)
 
-        # Configuration des drones
+        # Drones configuration
         self.drones: list[Dict[str, Any]] = []
         self.drone_size = QSize(50, 50)
 
@@ -53,7 +66,7 @@ class GraphWidget(QWidget):
         self.player: Any = None
         self.player_pixmap = QPixmap("assets/player.png")
 
-        # Obtenir le nombre de drones depuis les donnees (sinon 1)
+        # Get number of drones from data (default 1)
         nb_drones = int(self.map_data.get('nb_drones', 1))
 
         for drone_id in range(nb_drones):
@@ -67,12 +80,12 @@ class GraphWidget(QWidget):
             drone_label.setAttribute(
                 Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
-            # --- ICI on assigne le point de départ du pathfinding ---
+            # --- Assign starting pathfinding point ---
             assigned_path = self.calculated_paths.get(drone_id)
             if assigned_path and len(assigned_path) > 0:
                 current_hub = assigned_path[0]
             else:
-                # Fallback: Trouver le hub de départ si pas de chemin
+                # Fallback: Find starting hub if no path
                 current_hub = None
                 for name, hub in self.hubs.items():
                     if hub.get('type') == 'start_hub':
@@ -87,18 +100,32 @@ class GraphWidget(QWidget):
                 'wait_turns': drone_id
             })
 
-        # Configuration de l'animation
+        # Animation configuration
         self.animation_timer = QTimer(self)
         self.animation_timer.timeout.connect(self.update_drone_positions)
         self.current_step = 0
         self.animation_progress = 0.0
 
     def update_custom_color(self, zone_type: str, color_val: str) -> None:
+        """
+        Updates custom colors for the graph components.
+
+        Args:
+            zone_type (str): Type of the component.
+            color_val (str): Color to apply.
+        """
+        """
+        Updates custom colors for the graph components.
+
+        Args:
+            zone_type (str): Type of the component.
+            color_val (str): Color to apply.
+        """
         self.custom_colors[zone_type] = color_val
 
         if zone_type.lower() == 'background':
             palette = self.palette()
-            # On cherche si la couleur existe vraiment dans l'Enum Color
+            # Check if color really exists in Enum Color
             bg_color = Color.get_qcolor(color_val, default=Default.BACKGROUND)
             palette.setColor(self.backgroundRole(), bg_color)
             self.setPalette(palette)
@@ -117,8 +144,14 @@ class GraphWidget(QWidget):
         self.update()
 
     def randomize_colors(self) -> None:
+        """
+        Randomizes all colors in the graph.
+        """
+        """
+        Randomizes all colors in the graph.
+        """
         import random
-        # Liste de toutes les couleurs valides
+        # List of all valid colors
         all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
         zone_types = ["start", "end", 'hub', 'priority', 'restricted',
                       'blocked', 'connection', 'background', "drone",
@@ -128,6 +161,12 @@ class GraphWidget(QWidget):
             self.update_custom_color(z, random.choice(all_colors))
 
     def reset_drones(self) -> None:
+        """
+        Resets the drones to their initial positions.
+        """
+        """
+        Resets the drones to their initial positions.
+        """
         self.current_step = 0
         self.animation_progress = 0.0
         self._time_elapsed = 0.0
@@ -150,7 +189,7 @@ class GraphWidget(QWidget):
         self.update()
 
     def reset_graph_colors(self) -> None:
-        """Réinitialise les couleurs et le fond du graphe."""
+        """Resets the colors and background of the graph to defaults."""
         self.custom_colors.clear()
 
         palette = self.palette()
@@ -161,6 +200,24 @@ class GraphWidget(QWidget):
         self.update()
 
     def get_neighbors(self, node: str) -> list[str]:
+        """
+        Retrieves neighbors for a given node.
+
+        Args:
+            node (str): Node ID.
+
+        Returns:
+            list[str]: List of neighbor node IDs.
+        """
+        """
+        Retrieves neighbors for a given node.
+
+        Args:
+            node (str): Node ID.
+
+        Returns:
+            list[str]: List of neighbor node IDs.
+        """
         neighbors = []
         for c in self.connections:
             if c['from'] == node:
@@ -170,19 +227,19 @@ class GraphWidget(QWidget):
         return neighbors
 
     def toggle_game_mode(self) -> None:
-        """Active ou désactive le mode jeu interactif."""
+        """Toggles the interactive game mode."""
         self.game_mode = not self.game_mode
         if self.game_mode:
             if hasattr(self, 'animation_timer'):
                 self.animation_timer.stop()
-            # Cache les drones
+            # Hide drones
             for drone in self.drones:
                 drone['label'].hide()
             start_node = next((n for n, d in self.hubs.items(
                 ) if d.get('type') == 'start_hub'), next(iter(self.hubs)))
             self.player = Player(start_node)
         else:
-            # Réaffiche les drones
+            # Show drones again
             for drone in self.drones:
                 drone['label'].show()
             self.player = None
@@ -195,6 +252,24 @@ class GraphWidget(QWidget):
             menu.update()
 
     def handle_movement_keys(self, keys: set[Qt.Key]) -> bool:
+        """
+        Handles game mode movement keys.
+
+        Args:
+            keys (set[Qt.Key]): Pressed keys.
+
+        Returns:
+            bool: True if moved, False otherwise.
+        """
+        """
+        Handles game mode movement keys.
+
+        Args:
+            keys (set[Qt.Key]): Pressed keys.
+
+        Returns:
+            bool: True if moved, False otherwise.
+        """
         if not self.game_mode or not self.player:
             return False
 
@@ -243,6 +318,12 @@ class GraphWidget(QWidget):
         return False
 
     def start_animation(self) -> None:
+        """
+        Starts the drone movement animation.
+        """
+        """
+        Starts the drone movement animation.
+        """
         if self.calculated_paths:
             self.reset_drones()
 
@@ -254,6 +335,12 @@ class GraphWidget(QWidget):
             self.update()
 
     def next_turn(self) -> None:
+        """
+        Advances the simulation to the next turn.
+        """
+        """
+        Advances the simulation to the next turn.
+        """
         if not self.calculated_paths:
             return
 
@@ -340,7 +427,7 @@ class GraphWidget(QWidget):
                             drone['wait_turns'] = 1
                         elif 'priority' in attrs or \
                                 'priority' in attrs.values():
-                            drone['wait_turns'] = 0  # 1 tour au total
+                            drone['wait_turns'] = 0  # 1 turn total
                         else:
                             drone['wait_turns'] = 0
 
@@ -357,14 +444,11 @@ class GraphWidget(QWidget):
         self.update()
 
     def prev_turn(self) -> None:
-        """Reconstitue l'état un tour en arrière en rejouant depuis le départ.
+        """
+        Reconstructs the state one turn back by replaying from the start.
 
-        Plutôt que d'essayer d'inverser localement les `wait_turns` et
-        autres règles (complexe et sujet à erreurs), on réinitialise
-        l'état des drones puis on applique `next_turn()` autant de fois
-        que nécessaire pour atteindre l'état du tour précédent.
-        Cela garantit que les délais (wait_turns) sont correctement pris
-        en compte.
+        Rather than reversing logic locally, this resets the drones and
+        applies `next_turn()` until reaching the previous state.
         """
         if not self.calculated_paths:
             return
@@ -374,8 +458,8 @@ class GraphWidget(QWidget):
 
         target = max(0, self.nb_turns - 1)
 
-        # Sauvegarder la configuration actuelle minimale (au besoin)
-        # Réinitialiser et rejouer jusqu'au tour cible
+        # Save minimal current configuration (if needed)
+        # Reset and replay until target turn
         self.reset_drones()
 
         for _ in range(target):
@@ -383,7 +467,7 @@ class GraphWidget(QWidget):
             self.next_turn()
 
     def print_nb_turns(self) -> None:
-        """Met à jour le texte et l'apparence de la popup des tours."""
+        """Updates the text and appearance of the turns popup."""
         self.turn_label.setText(f"TOURS : {self.nb_turns}")
 
         turn_color = Default.TURN.qcolor().name()
@@ -396,7 +480,7 @@ class GraphWidget(QWidget):
             turn_bg = Color.get_qcolor(self.custom_colors['turn_bg'],
                                        default=Color.BLACK).name()
 
-        # On applique le style (gris transparent + vert radar)
+        # Apply style (transparent gray + radar green)
         self.turn_label.setStyleSheet(f"""
             background-color: {turn_bg};
             color: {turn_color};
@@ -409,9 +493,15 @@ class GraphWidget(QWidget):
         self.turn_label.show()
 
     def update_drone_positions(self) -> None:
+        """
+        Updates the graphical positions of the drones for the animation.
+        """
+        """
+        Updates the graphical positions of the drones for the animation.
+        """
         all_done = True
 
-        # Gestion du compteur de tours (1 tour ~ 500ms)
+        # Handle turn counter (1 turn ~ 500ms)
         if not hasattr(self, '_time_elapsed'):
             self._time_elapsed = 0.0
 
@@ -421,7 +511,7 @@ class GraphWidget(QWidget):
             self.nb_turns += 1
             self.print_nb_turns()
 
-        # SNAPSHOT des occupations AVANT tout déplacement
+        # SNAPSHOT of occupancies BEFORE any movement
         occupied_counts: dict[str, int] = {}
         for drone_id, drone in enumerate(self.drones):
             assigned_path = self.calculated_paths.get(drone_id)
@@ -444,7 +534,7 @@ class GraphWidget(QWidget):
                         occupied_counts[dest_name] = (
                             occupied_counts.get(dest_name, 0) + 1)
 
-        # Maintenant déplacer chaque drone EN FONCTION du snapshot
+        # Move each drone BASED on snapshot
         for drone_id, drone in enumerate(self.drones):
             assigned_path = self.calculated_paths.get(drone_id)
             if not assigned_path:
@@ -456,14 +546,14 @@ class GraphWidget(QWidget):
             if step < len(assigned_path) - 1:
                 all_done = False
 
-                # S'il attend son tour pour démarrer
+                # If waiting for its turn to start
                 if step < 0:
                     progress += 16.0 / 512.0
                     if progress >= 1.0:
                         progress = 0.0
                         step += 1
                 else:
-                    # En déplacement entre deux noeuds
+                    # Moving between two nodes
                     h_to_name = assigned_path[step + 1]
                     h_to = self.hubs.get(h_to_name, {})
 
@@ -510,7 +600,7 @@ class GraphWidget(QWidget):
 
         self.update()
 
-        # S'assurer que le menu se met à jour pour voir les stats en temps réel
+        # Ensure menu updates to see real-time stats
         window: Any = self.window()
         if hasattr(window, 'menu_view'):
             window.menu_view.update()
@@ -519,46 +609,51 @@ class GraphWidget(QWidget):
             self.animation_timer.stop()
 
     def paintEvent(self, event: Any) -> None:
-        """Méthode appelée automatiquement par Qt pour dessiner le widget."""
+        """
+        Automatically called by Qt to draw the widget.
+
+        Args:
+            event (Any): The paint event.
+        """
         if not self.hubs:
             return
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # 1. Calculer les limites (min/max) pour centrer le graphe
+        # 1. Calculate min/max bounds to center graph
         min_x = min(h['x'] for h in self.hubs.values())
         max_x = max(h['x'] for h in self.hubs.values())
         min_y = min(h['y'] for h in self.hubs.values())
         max_y = max(h['y'] for h in self.hubs.values())
 
-        # 2. Calculer l'échelle pour que ça rentre dans la fenêtre
+        # 2. Calculate scale to fit window
         margin = 60
         w = self.width() - 2 * margin
         h = self.height() - 2 * margin
 
-        # Le reste du dessin est géré plus bas ou dans les classes spécifiques
+        # The rest of drawing is handled below or in specific classes
 
         actual_range_x = max_x - min_x
         actual_range_y = max_y - min_y
 
-        # Calculer l'échelle en évitant la division par zéro
+        # Calculate scale avoiding division by zero
         scale_x = w / max(1, actual_range_x)
         scale_y = h / max(1, actual_range_y)
 
-        # Garder les proportions (aspect ratio)
+        # Keep aspect ratio
         scale = min(scale_x, scale_y)
 
         offset_x = margin + (w - actual_range_x * scale) / 2
         offset_y = margin + (h - actual_range_y * scale) / 2
 
-        # Fonction locale pour convertir coord logic -> coord écran
+        # Local function to convert logic to screen coordinates
         def get_screen_pos(x: int, y: int) -> QPointF:
             screen_x = offset_x + (x - min_x) * scale
             screen_y = offset_y + (y - min_y) * scale
             return QPointF(screen_x, screen_y)
 
-        # 3. Dessiner les connexions (lignes) AVANT les points
+        # 3. Draw connections (lines) BEFORE points
         conn_color_name = self.custom_colors.get('connection')
         if conn_color_name:
             conn_color = Color.get_qcolor(conn_color_name,
@@ -576,7 +671,7 @@ class GraphWidget(QWidget):
                 p2 = get_screen_pos(h2['x'], h2['y'])
                 painter.drawLine(p1, p2)
 
-        # 4. Dessiner les Hubs (points)
+        # 4. Draw Hubs (points)
         node_radius = 25
         for name, hub in self.hubs.items():
             pos = get_screen_pos(hub['x'], hub['y'])
@@ -612,7 +707,7 @@ class GraphWidget(QWidget):
             node_color = default_map.get(z_type, Default.HUB).qcolor()
             is_rainbow = False
 
-            # attribut couleur de la map
+            # Map color attribute
             if 'color' in hub['attributes']:
                 color_name = str(hub['attributes']['color']).lower()
                 if color_name == 'rainbow':
@@ -621,9 +716,9 @@ class GraphWidget(QWidget):
                     node_color = Color.get_qcolor(
                         color_name, default=Color.GRAY)
 
-            # Custom command override (plus haute priorité)
-            # Accepter 'start' et 'end' au lieu de 'start_hub' et 'end_hub'
-            # pour plus de convivialité
+            # Custom command override (highest priority)
+            # Accept 'start' and 'end' instead of 'start_hub' and 'end_hub'
+            # for better usability
             term_z_type = z_type
             if z_type == 'start_hub':
                 term_z_type = 'start'
@@ -663,12 +758,12 @@ class GraphWidget(QWidget):
 
             self._drawn_nodes[name] = (pos, current_radius)
 
-        # 5. Positionner les drones (avec interpolation)
+        # 5. Position drones (with interpolation)
         for drone_id, drone in enumerate(self.drones):
             assigned_path = self.calculated_paths.get(drone_id)
 
-            # S'il n'y a pas de chemin assigné au drone, position
-            # classique sur le `current_hub`
+            # If no assigned path, fallback position
+            # on `current_hub`
             if not assigned_path:
                 current_hub = drone.get('current_hub')
                 if current_hub and current_hub in self.hubs:
@@ -712,7 +807,7 @@ class GraphWidget(QWidget):
                 size = 50
                 pm = getattr(self, 'player_pixmap', None)
                 if pm and not pm.isNull():
-                    # Recadrer en carré parfait depuis le centre
+                    # Crop to perfect square from center
                     w, h = pm.width(), pm.height()
                     min_dim = min(w, h)
                     crop_rect = QRect((w - min_dim) // 2, (h - min_dim) // 2,
@@ -729,26 +824,33 @@ class GraphWidget(QWidget):
 
         painter.end()
 
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        """Détecte si la souris survole un des noeuds dessinés."""
+    def mouseMoveEvent(self, event: QMouseEvent | None) -> None:
+        """
+        Detects if the mouse hovers over a drawn node.
+
+        Args:
+            event (QMouseEvent | None): The mouse event.
+        """
+        if event is None:
+            return
         pos = event.position()
         hovered_name = ""
 
-        # On vérifie chaque noeud que l'on a dessiné
+        # Check each drawn node
         for name, (node_pos, radius) in self._drawn_nodes.items():
-            # Théorème de Pythagore (math.hypot) pour vérifier la distance
+            # Pythagorean theorem to check distance
             diff_x = pos.x() - node_pos.x()
             diff_y = pos.y() - node_pos.y()
             if math.hypot(diff_x, diff_y) <= radius:
                 hovered_name = name
                 break
 
-        # Si le noeud survolé a changé (pour ne pas spammer d'événements)
+        # If hovered node changed (to avoid event spam)
         if self._last_hovered != hovered_name:
             self._last_hovered = hovered_name
 
             if hovered_name:
-                self._pinned_node = ""  # Passer sur un autre hub annule le pin
+                self._pinned_node = ""  # Hovering another hub cancels the pin
                 self.node_hovered.emit(hovered_name)
             else:
                 if getattr(self, '_pinned_node', ""):
@@ -756,8 +858,15 @@ class GraphWidget(QWidget):
                 else:
                     self.node_hovered.emit("")
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Fixe l'affichage d'un hub au clic."""
+    def mousePressEvent(self, event: QMouseEvent | None) -> None:
+        """
+        Pins the display of a hub on click.
+
+        Args:
+            event (QMouseEvent | None): The mouse event.
+        """
+        if event is None:
+            return
         pos = event.position()
         for name, (node_pos, radius) in self._drawn_nodes.items():
             diff_x = pos.x() - node_pos.x()

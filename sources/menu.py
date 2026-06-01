@@ -8,13 +8,19 @@ from constant import Default, Color
 
 class MenuWidget(QWidget):
     """
-    Widget personnalisé chargé de dessiner le menu de la simulation
-    en fonction des données parsées.
+    Custom widget for drawing the simulation side-menu.
     """
     graph_reset_requested = pyqtSignal()
 
     def __init__(self, map_data: Dict[str, Any],
                  parent: Any = None) -> None:
+        """
+        Initializes the MenuWidget.
+
+        Args:
+            map_data (Dict[str, Any]): The parsed map data.
+            parent (Any, optional): The parent widget. Defaults to None.
+        """
         super().__init__(parent)
         self.map_data = map_data
         self.hovered_node = ""
@@ -30,6 +36,12 @@ class MenuWidget(QWidget):
         self.setPalette(palette)
 
     def wheelEvent(self, event: Any) -> None:
+        """
+        Handles mouse wheel scrolling.
+
+        Args:
+            event (Any): The wheel event.
+        """
         """Gère le défilement de la liste des capacités."""
         delta = event.angleDelta().y()
         if delta > 0:
@@ -45,6 +57,13 @@ class MenuWidget(QWidget):
         self.update()
 
     def update_custom_color(self, zone_type: str, color_val: str) -> None:
+        """
+        Updates a specific custom color in the menu UI.
+
+        Args:
+            zone_type (str): The UI component type.
+            color_val (str): The new color value.
+        """
         self.custom_colors[zone_type] = color_val
 
         if zone_type.lower() == 'menu_bg':
@@ -56,6 +75,9 @@ class MenuWidget(QWidget):
         self.update()
 
     def randomize_colors(self) -> None:
+        """
+        Randomizes the menu UI colors.
+        """
         import random
         all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
         zones = ['menu', 'text', 'menu_bg',
@@ -65,6 +87,9 @@ class MenuWidget(QWidget):
             self.update_custom_color(z, random.choice(all_colors))
 
     def reset_colors(self) -> None:
+        """
+        Resets all menu UI colors to defaults.
+        """
         """Réinitialise les couleurs du menu et notifie le système."""
         self.custom_colors.clear()
 
@@ -76,6 +101,12 @@ class MenuWidget(QWidget):
         self.graph_reset_requested.emit()
 
     def paintEvent(self, event: Any) -> None:
+        """
+        Paints the menu UI (hubs, capacities, texts).
+
+        Args:
+            event (Any): The paint event.
+        """
         """Méthode appelée automatiquement par Qt pour dessiner le widget."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -124,8 +155,8 @@ class MenuWidget(QWidget):
 
         graph_view: Any | None = None
         window = self.window()
-        if hasattr(window, 'graph_view'):
-            graph_view = window.graph_view
+        if window is not None and hasattr(window, 'graph_view'):
+            graph_view = getattr(window, 'graph_view')
 
         is_game = False
         if graph_view:
@@ -354,11 +385,23 @@ class MenuWidget(QWidget):
                                  info_text)
 
     def on_node_hovered(self, node_name: str) -> None:
+        """
+        Called when a node is hovered in the graph.
+
+        Args:
+            node_name (str): The name of the hovered node.
+        """
         """Méthode appelée par le signal du graphe pour mettre à jour la vue"""
         self.hovered_node = node_name
         self.update()
 
     def mousePressEvent(self, event: Any) -> None:
+        """
+        Handles mouse press for drag-scrolling.
+
+        Args:
+            event (Any): The mouse event.
+        """
         if getattr(self, 'max_scroll', 0) <= 0:
             return super().mousePressEvent(event)
 
@@ -380,6 +423,12 @@ class MenuWidget(QWidget):
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: Any) -> None:
+        """
+        Handles mouse move for drag-scrolling.
+
+        Args:
+            event (Any): The mouse event.
+        """
         if getattr(self, '_scrolling', False):
             rect = self.rect()
             middle_x = int(rect.width() / 2)
@@ -390,10 +439,24 @@ class MenuWidget(QWidget):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: Any) -> None:
+        """
+        Handles mouse release to end drag-scrolling.
+
+        Args:
+            event (Any): The mouse event.
+        """
         self._scrolling = False
         super().mouseReleaseEvent(event)
 
     def _do_scroll(self, y: float, list_rect: QRect) -> None:
+        """
+        Adjusts the scroll position based on drag offset.
+
+        Args:
+            y (float): The new mouse Y coordinate.
+            list_rect (QRect): The rectangle area containing the scrollable
+            list.
+        """
         vh = list_rect.height()
         thumb_h = max(20, int(vh * (vh / (vh + self.max_scroll))))
         av_scroll = vh - thumb_h

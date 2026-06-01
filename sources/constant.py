@@ -64,7 +64,15 @@ class Color(IntEnum):
 
     @classmethod
     def to_rgba(cls, color_int: int) -> tuple[int, int, int, int]:
-        """Convertit une couleur hexadécimale (ARGB) en tuple (R, G, B, A)."""
+        """
+        Converts a hexadecimal color (ARGB) to an (R, G, B, A) tuple.
+
+        Args:
+            color_int (int): The hexadecimal color value.
+
+        Returns:
+            tuple[int, int, int, int]: RGBA color tuple.
+        """
         a = (color_int >> 24) & 0xFF
         r = (color_int >> 16) & 0xFF
         g = (color_int >> 8) & 0xFF
@@ -72,13 +80,28 @@ class Color(IntEnum):
         return (r, g, b, a)
 
     def qcolor(self) -> QColor:
-        """Renvoie un objet QColor utilisable par PyQt6."""
+        """
+        Returns a QColor object usable by PyQt6.
+
+        Returns:
+            QColor: The converted QColor object.
+        """
         r, g, b, a = self.to_rgba(self.value)
         return QColor(r, g, b, a)
 
     @classmethod
     def get_qcolor(cls, name: str, default: Any = None) -> Any:
-        """Récupère une couleur QColor par son nom (insensible à la casse)."""
+        """
+        Retrieves a QColor by its name (case-insensitive).
+
+        Args:
+            name (str): The name of the color.
+            default (Any, optional): The default color if not found.
+            Defaults to None.
+
+        Returns:
+            Any: The matching QColor object or the default one.
+        """
         if default is None:
             default = cls.GRAY
         try:
@@ -88,6 +111,9 @@ class Color(IntEnum):
 
 
 class Default():
+    """
+    Class containing default color constants for various UI elements.
+    """
     ENTRY = Color.TEAL
     EXIT = Color.FOREST_GREEN
     # Zones
@@ -95,7 +121,7 @@ class Default():
     PRIORITY = Color.GOLD
     RESTRICTED = Color.DARK_ORANGE
     BLOCKED = Color.BLACK
-    # Contexte
+    # Context
     CONNECTION = Color.BLACK
     BACKGROUND = Color.NIGHT_BLUE
     MENU = Color.BLACK
@@ -106,7 +132,7 @@ class Default():
     TURN = Color.BLUE
     TURN_BG = Color.GRAY
 
-    # Barres de capacité
+    # Capacity bars
     CAPACITY_BAR_BG = Color.DARK_GRAY
     CAPACITY_BAR_OK = Color.LIME_GREEN
     CAPACITY_BAR_OVERFLOW = Color.RED

@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Set
 
 
 def _is_restricted(zone_name: str, map_data: Dict[str, Any]) -> bool:
-    """Détermine si une zone est de type restricted."""
+    """Determines if a zone is restricted."""
     # Check hubs mapped data
     hubs = map_data.get("hubs", {})
     if zone_name in hubs:
@@ -28,7 +28,16 @@ def _is_restricted(zone_name: str, map_data: Dict[str, Any]) -> bool:
 
 
 def _get_zone_capacity(zone_name: str, map_data: Dict[str, Any]) -> int:
-    """Récupère la capacité maximale d'une zone."""
+    """
+    Retrieves the maximum capacity of a specific zone.
+
+    Args:
+        zone_name (str): The name of the zone.
+        map_data (Dict[str, Any]): The map data.
+
+    Returns:
+        int: The maximum capacity of the zone.
+    """
     hubs = map_data.get("hubs", {})
     if zone_name in hubs:
         z = hubs[zone_name]
@@ -54,27 +63,35 @@ def _get_zone_capacity(zone_name: str, map_data: Dict[str, Any]) -> int:
 def print_simulation_output(
     paths: Dict[int, List[Any]], map_data: Dict[str, Any]
 ) -> None:
-    """Simule, affiche et enregistre les déplacements des drones."""
-    # 1. Nettoyage strict des données (Sanitization)
+    """
+    Simulates, displays, and records the movements of drones.
+
+    Args:
+        paths (Dict[int, List[Any]]): Dictionary mapping drone IDs to
+        their paths.
+        map_data (Dict[str, Any]): Parsed map data containing hubs
+        and connections.
+    """
+    # 1. Strict data sanitization
     clean_paths: Dict[int, List[str]] = {}
     for d_id, raw_path in paths.items():
         if not raw_path:
             clean_paths[d_id] = []
             continue
 
-        # Si le chemin entier est imbriqué dans une autre liste
+        # If the entire path is nested in another list
         if len(raw_path) == 1 and isinstance(raw_path, list):
             working_path = raw_path
         else:
             working_path = raw_path
 
-        # Force chaque nœud à être une simple chaîne de caractères
+        # Force each node to be a simple string
         clean_paths[d_id] = [
             str(node) if isinstance(node, list) else str(node)
             for node in working_path
         ]
 
-    # 2. Initialisation
+    # 2. Initialization
     drone_positions: Dict[int, int] = {d: 0 for d in clean_paths}
     drone_cooldown: Dict[int, int] = {d: 0 for d in clean_paths}
     active_drones: Set[int] = {
@@ -86,46 +103,49 @@ def print_simulation_output(
         start_node = clean_paths[d][0]
         occupancy[start_node] = occupancy.get(start_node, 0) + 1
 
-    # 3. Boucle de simulation
-    with open("output.txt", "w", encoding="utf-8") as f:
-        while active_drones:
-            turn_movements: List[str] = []
-            drones_to_remove: List[int] = []
+    # 3. Simulation loop
+    try:
+        with open("output.txt", "w", encoding="utf-8") as f:
+            while active_drones:
+                turn_movements: List[str] = []
+                drones_to_remove: List[int] = []
 
-            for d in sorted(active_drones):
-                idx = drone_positions[d]
-                curr_node = clean_paths[d][idx]
+                for d in sorted(active_drones):
+                    idx = drone_positions[d]
+                    curr_node = clean_paths[d][idx]
 
-                if drone_cooldown[d] > 0:
-                    drone_cooldown[d] -= 1
-                    continue
+                    if drone_cooldown[d] > 0:
+                        drone_cooldown[d] -= 1
+                        continue
 
-                if idx + 1 < len(clean_paths[d]):
-                    next_node = clean_paths[d][idx + 1]
-                    cap = _get_zone_capacity(next_node, map_data)
+                    if idx + 1 < len(clean_paths[d]):
+                        next_node = clean_paths[d][idx + 1]
+                        cap = _get_zone_capacity(next_node, map_data)
 
-                    if occupancy.get(next_node, 0) < cap:
-                        occupancy[curr_node] -= 1
-                        occupancy[next_node] = (
-                            occupancy.get(next_node, 0) + 1
-                        )
+                        if occupancy.get(next_node, 0) < cap:
+                            occupancy[curr_node] -= 1
+                            occupancy[next_node] = (
+                                occupancy.get(next_node, 0) + 1
+                            )
 
-                        drone_positions[d] += 1
-                        turn_movements.append(f"D{d}-{next_node}")
+                            drone_positions[d] += 1
+                            turn_movements.append(f"D{d}-{next_node}")
 
-                        if _is_restricted(next_node, map_data):
-                            drone_cooldown[d] = 1
+                            if _is_restricted(next_node, map_data):
+                                drone_cooldown[d] = 1
 
-                        path_len = len(clean_paths[d])
-                        if drone_positions[d] == path_len - 1:
-                            drones_to_remove.append(d)
+                            path_len = len(clean_paths[d])
+                            if drone_positions[d] == path_len - 1:
+                                drones_to_remove.append(d)
 
-            for d in drones_to_remove:
-                final_node = clean_paths[d][-1]
-                occupancy[final_node] -= 1
-                active_drones.remove(d)
+                for d in drones_to_remove:
+                    final_node = clean_paths[d][-1]
+                    occupancy[final_node] -= 1
+                    active_drones.remove(d)
 
-            if turn_movements:
-                line_text = " ".join(turn_movements)
-                # print(line_text)
-                f.write(line_text + "\n")
+                if turn_movements:
+                    line_text = " ".join(turn_movements)
+                    # print(line_text)
+                    f.write(line_text + "\n")
+    except IOError as e:
+        print(f"Error writing to output.txt: {e}")
