@@ -58,8 +58,7 @@ def get_args() -> Dict[str, Any]:
     resolved_path = get_map_path_from_arg(input_arg)
 
     if not resolved_path or not os.path.exists(resolved_path):
-        print(f"Error: Unable to find map for argument"
-              f"'{input_arg}'.")
+        print(f"Error: Unable to find map for argument '{input_arg}'.")
         sys.exit(1)
 
     args_dict: Dict[str, Any] = {
