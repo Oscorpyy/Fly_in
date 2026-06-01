@@ -68,10 +68,11 @@ class DroneSimulationWindow(QMainWindow):
 
         # -- CONNEXION --
         self.map_3d_view.win_trigger.connect(self.transition_to_2d_graph)
-        # On relie le signal "node_hovered" émis par le dessin du graphe
-        # à la méthode "on_node_hovered" du menu. C'est l'essence de PyQt !
         self.graph_view.node_hovered.connect(self.menu_view.on_node_hovered)
         self.terminal_view.command_emitted.connect(self.on_terminal_command)
+
+        # La ligne magique qu'il te manquait :
+        self.map_3d_view.command_emitted.connect(self.on_terminal_command)
 
         self.keys_pressed: set[int] = set()
 
@@ -165,6 +166,7 @@ class DroneSimulationWindow(QMainWindow):
             if self.centralWidget():
                 self.centralWidget().setStyleSheet("")
             self.setStyleSheet("")
+
         elif cmd == 'random color':
             if hasattr(self, 'random_auto_timer'
                        ) and self.random_auto_timer.isActive():
@@ -267,6 +269,7 @@ class DroneSimulationWindow(QMainWindow):
                 drone_paths = pf.dispatch_drones(start_hubs[0], end_hubs[0],
                                                  nb_drones)
                 new_map_data['calculated_paths'] = drone_paths
+                print_simulation_output(drone_paths, new_map_data)
             else:
                 error_msg = "❌ Erreur : Impossible d'atteindre le"
                 f"hub cible depuis {start_hubs[0]} vers"

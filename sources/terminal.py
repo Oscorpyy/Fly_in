@@ -1,4 +1,5 @@
 from typing import Any
+import os
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
 from PyQt6.QtWidgets import QLineEdit, QApplication, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -32,8 +33,10 @@ class TerminalInput(QLineEdit):
             'show path': "Affiche l'animation des drones sur le chemin",
             'reset drone': "Réinitialise la position des drones",
             'reset': "Réinitialise la position des drones + les couleurs",
+            'reset all': "Reset complet et retour au projet de base",
             'game': "Active le mode de jeu manuel avec le joueur",
-            'map={name}': "Charge une nouvelle map (ex: map=Challenger_01)",
+            'map={folder}_{numero}': "Charge une nouvelle map "
+            "(ex: map=challenger_01)",
             'color {zone} {color}': "Modifie la couleur d'une zone"
             "(ex: color hub red)",
             'random color': "Modifie aléatoirement toutes les "
@@ -43,6 +46,8 @@ class TerminalInput(QLineEdit):
         }
         self.tab_index: int = 0
         self.tab_matches: list[str] = []
+        self.map_root = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), os.pardir, "maps"))
 
     def event(self, event: Any) -> bool:
         """
@@ -64,6 +69,11 @@ class TerminalInput(QLineEdit):
         if not self.tab_matches:
             parts = current_text.split()
             base_cmd = parts[0].lower() if parts else ""
+
+            if base_cmd in ("map=", "map", "m=", "m") or \
+                    current_text.lower().startswith(("map=", "map ",
+                                                     "m=", "m ")):
+                self.tab_matches = self._build_map_matches(current_text)
 
             if base_cmd == "color":
                 zones = ["start", "end", "hub", "priority", "restricted",
@@ -100,6 +110,60 @@ class TerminalInput(QLineEdit):
             self.setText(self.tab_matches[self.tab_index])
             # On déplace l'index pour le prochain coup de Tab (boucle)
             self.tab_index = (self.tab_index + 1) % len(self.tab_matches)
+
+    def _build_map_matches(self, current_text: str) -> list[str]:
+        clean_text = current_text.lower().replace(" ", "")
+        if clean_text.startswith("m="):
+            clean_text = "map=" + clean_text[2:]
+        elif clean_text.startswith("m") and not clean_text.startswith("map"):
+            clean_text = "map=" + clean_text[1:]
+
+        if clean_text.startswith("map="):
+            arg_prefix = clean_text[4:]
+        else:
+            arg_prefix = ""
+
+        folders = self._get_map_folders()
+
+        if "_" not in arg_prefix:
+            return [f"map={folder}_" for folder in folders
+                    if folder.startswith(arg_prefix)]
+
+        folder_prefix, file_prefix = arg_prefix.split("_", 1)
+        matching_folders = [folder for folder in folders
+                            if folder.startswith(folder_prefix)]
+        matches: list[str] = []
+
+        for folder in matching_folders:
+            for file_name in self._get_map_files(folder):
+                if file_name.startswith(file_prefix):
+                    matches.append(f"map={folder}_{file_name}")
+
+        return matches
+
+    def _get_map_folders(self) -> list[str]:
+        if not os.path.isdir(self.map_root):
+            return []
+
+        return sorted(
+            entry for entry in os.listdir(self.map_root)
+            if os.path.isdir(os.path.join(self.map_root, entry))
+        )
+
+    def _get_map_files(self, folder: str) -> list[str]:
+        folder_path = os.path.join(self.map_root, folder)
+        if not os.path.isdir(folder_path):
+            return []
+
+        file_names: list[str] = []
+        seen_numbers: set[str] = set()
+        for entry in sorted(os.listdir(folder_path)):
+            if entry.endswith(".txt"):
+                file_number = entry.split("_", 1)[0]
+                if file_number not in seen_numbers:
+                    seen_numbers.add(file_number)
+                    file_names.append(file_number)
+        return file_names
 
     def add_to_history(self, command: str) -> None:
         """Ajoute une commande à l'historique si

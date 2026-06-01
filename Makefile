@@ -28,6 +28,8 @@ clean:
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type f -name "*.log" -delete
 	@find . -type d -name ".mypy_cache" -exec rm -rf {} +
+	@echo "Removing output files..."
+	@rm output.txt
 	@echo "Removing virtual environment..."
 	@rm -rf .venv
 	@echo "Cleanup complete."

@@ -1,6 +1,6 @@
 import random
 import math
-from typing import Any
+from typing import Any, List
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QApplication
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QEvent
 from PyQt6.QtGui import QVector3D, QColor, QFont, QCursor
@@ -12,6 +12,7 @@ from PyQt6.Qt3DRender import QObjectPicker, QPickingSettings, QPointLight
 
 class Map3DWidget(QWidget):
     win_trigger = pyqtSignal()
+    command_emitted = pyqtSignal(str)
 
     def __init__(self, map_data: dict[str, Any] | None = None,
                  parent: QWidget | None = None) -> None:
@@ -92,14 +93,26 @@ class Map3DWidget(QWidget):
             "#.......................#",
             "#########################"
         ]
-        self.entities = []
+        self.entities: List[QEntity] = []
         self.build_map()
 
         self.score = 0
+        self.best_score = 0
         self.time_left = 30  # 30 secondes pour le mode Aim Lab
         self.game_started = False
         self.target = None
         self.target_transform = None
+        self.target_base_x = 14.0
+        self.target_base_y = 2.8
+        self.target_base_z = 1.1
+        self.target_move_phase = 0.0
+        self.target_move_amplitude_x = 0.45
+        self.target_move_amplitude_y = 0.20
+        self.target_move_freq_x = 1.0
+        self.target_move_freq_y = 1.7
+        self.target_move_speed = 2.4
+        self.target_speed_target = 2.4
+        self.target_speed_change_timer = 0.8
         self.spawn_aimlab_target()
 
         # Affichage du Score et Temps type Valorant
@@ -109,7 +122,7 @@ class Map3DWidget(QWidget):
         self.board_mesh.setYExtent(2.5)
         self.board_mesh.setZExtent(0.1)
         self.board_mat = QPhongMaterial()
-        self.board_mat.setDiffuse(QColor("#4f5866"))
+        self.board_mat.setDiffuse(QColor("#55595e"))
         self.board_trans = QTransform()
         self.board_trans.setTranslation(QVector3D(12.5, 2.8, 1.05))
         self.board_entity.addComponent(self.board_mesh)
@@ -122,9 +135,61 @@ class Map3DWidget(QWidget):
         self.text_mat.setSpecular(QColor("black"))
         self.text_mat.setShininess(0.0)
 
+        # --- BLOC EXIT sur le mur droit (en face du mur sensibilité) ---
+        self.exit_board_entity: QEntity = QEntity(self.rootEntity)
+        self.exit_board_mesh: QCuboidMesh = QCuboidMesh()
+        self.exit_board_mesh.setXExtent(0.1)
+        self.exit_board_mesh.setYExtent(3.0)
+        self.exit_board_mesh.setZExtent(5.5)
+        self.exit_board_mat: QPhongMaterial = QPhongMaterial()
+        self.exit_board_mat.setDiffuse(QColor("#4f5866"))
+        self.exit_board_trans: QTransform = QTransform()
+        self.exit_board_trans.setTranslation(QVector3D(24.95, 2.8, 9.3))
+        self.exit_board_entity.addComponent(self.exit_board_mesh)
+        self.exit_board_entity.addComponent(self.exit_board_mat)
+        self.exit_board_entity.addComponent(self.exit_board_trans)
+
+        # Titre "Exit" au-dessus
+        self.exit_title_entity: QEntity = QEntity(self.rootEntity)
+        self.exit_title_mesh: QExtrudedTextMesh = QExtrudedTextMesh()
+        self.exit_title_mesh.setText("Exit")
+        self.exit_title_mesh.setDepth(0.05)
+        self.exit_title_mesh.setFont(QFont("Arial", 48))
+
+        # Matériau rouge spécifique pour le texte Exit
+        self.exit_title_mat: QPhongMaterial = QPhongMaterial()
+        self.exit_title_mat.setDiffuse(QColor("#ff0000"))
+        self.exit_title_mat.setAmbient(QColor("#ff0000"))
+
+        self.exit_title_trans: QTransform = QTransform()
+        self.exit_title_trans.setRotationY(-90.0)
+        self.exit_title_trans.setTranslation(QVector3D(24.9, 3.3, 8.7))
+        self.exit_title_trans.setScale(0.5)
+        self.exit_title_entity.addComponent(self.exit_title_mesh)
+        self.exit_title_entity.addComponent(self.exit_title_mat)
+        self.exit_title_entity.addComponent(self.exit_title_trans)
+
+        # Bouton EXIT cliquable
+        self.exit_btn_entity: QEntity = QEntity(self.rootEntity)
+        self.exit_btn_mesh: QCuboidMesh = QCuboidMesh()
+        self.exit_btn_mesh.setXExtent(0.15)
+        self.exit_btn_mesh.setYExtent(0.7)
+        self.exit_btn_mesh.setZExtent(0.7)
+        self.exit_btn_mat: QPhongMaterial = QPhongMaterial()
+        self.exit_btn_mat.setDiffuse(QColor("#ff0000"))
+        self.exit_btn_mat.setAmbient(QColor("#ff0000"))
+        self.exit_btn_trans: QTransform = QTransform()
+        self.exit_btn_trans.setTranslation(QVector3D(24.9, 2.4, 9.3))
+        self.exit_btn_picker: QObjectPicker = QObjectPicker()
+        self.exit_btn_picker.clicked.connect(self._on_exit_clicked)
+        self.exit_btn_entity.addComponent(self.exit_btn_mesh)
+        self.exit_btn_entity.addComponent(self.exit_btn_mat)
+        self.exit_btn_entity.addComponent(self.exit_btn_trans)
+        self.exit_btn_entity.addComponent(self.exit_btn_picker)
+
         # Affichage de la sentibilité sur le mure du haut
         # Variables d'état
-        self.current_sens: float = 0.2
+        self.current_sens: float = 0.15
 
         # --- BLOC CONFIGURATION SENSIBILITÉ ---
         self.sens_board_entity: QEntity = QEntity(self.rootEntity)
@@ -142,7 +207,7 @@ class Map3DWidget(QWidget):
 
         self.sens_title_entity: QEntity = QEntity(self.rootEntity)
         self.sens_title_mesh: QExtrudedTextMesh = QExtrudedTextMesh()
-        self.sens_title_mesh.setText(f"Sensibilite: {self.current_sens:.2f}")
+        self.sens_title_mesh.setText(f"Sensitivity: {self.current_sens:.2f}")
         self.sens_title_mesh.setDepth(0.05)
         self.sens_title_mesh.setFont(QFont("Arial", 48))
 
@@ -150,8 +215,8 @@ class Map3DWidget(QWidget):
         # Rotation positive pour orienter le texte vers l'intérieur de la pièce
         self.sens_title_trans.setRotationY(90.0)
         # Ajustement de la position Z de départ pour centrer la chaîne
-        self.sens_title_trans.setTranslation(QVector3D(1.1, 3.3, 7.0))
-        self.sens_title_trans.setScale(0.075)
+        self.sens_title_trans.setTranslation(QVector3D(1.1, 3.3, 11.65))
+        self.sens_title_trans.setScale(0.5)
 
         self.sens_title_entity.addComponent(self.sens_title_mesh)
         self.sens_title_entity.addComponent(self.text_mat)
@@ -161,10 +226,10 @@ class Map3DWidget(QWidget):
         self.sens_labels: list[QEntity] = []
 
         button_configs: list[tuple[float, str, float]] = [
-            (10.8, "--", -0.1),
-            (9.8, "-", -0.01),
-            (8.8, "+", 0.01),
-            (7.8, "++", 0.1)
+            (10.8, "-0.10", -0.1),
+            (9.8, "-0.01", -0.01),
+            (8.8, "+0.01", 0.01),
+            (7.8, "+0.10", 0.1)
         ]
 
         self.btn_label_mat: QPhongMaterial = QPhongMaterial()
@@ -203,8 +268,8 @@ class Map3DWidget(QWidget):
             lbl_trans: QTransform = QTransform()
             lbl_trans.setRotationY(90.0)
 
-            lbl_trans.setTranslation(QVector3D(1.2, 2.29, z_pos + 0.1))  # signes
-            lbl_trans.setScale(0.25)
+            lbl_trans.setTranslation(QVector3D(1.2, 2.35, z_pos + 0.2))
+            lbl_trans.setScale(0.12)
 
             lbl_entity.addComponent(lbl_mesh)
             lbl_entity.addComponent(self.btn_label_mat)
@@ -226,12 +291,13 @@ class Map3DWidget(QWidget):
         self.score_label_entity.addComponent(self.score_label_trans)
         self.score_label_entity.setEnabled(False)
 
-        # Label: REMAINING
+        # Label: TIME
         self.time_label_entity = QEntity(self.board_entity)
         self.time_label_mesh = QExtrudedTextMesh()
-        self.time_label_mesh.setFont(QFont("monospace", 10,
-                                           QFont.Weight.Normal))
-        self.time_label_mesh.setText("REMAINING")
+        self.time_label_mesh.setFont(
+            QFont("monospace", 10, QFont.Weight.Normal)
+        )
+        self.time_label_mesh.setText("TIME")
         self.time_label_mesh.setDepth(0.01)
         self.time_label_trans = QTransform()
         self.time_label_trans.setScale(0.12)
@@ -255,7 +321,7 @@ class Map3DWidget(QWidget):
         self.score_val_entity.addComponent(self.score_val_trans)
         self.score_val_entity.setEnabled(False)
 
-        # Value: REMAINING
+        # Value: TIME
         self.time_val_entity = QEntity(self.board_entity)
         self.time_val_mesh = QExtrudedTextMesh()
         self.time_val_mesh.setFont(QFont("monospace", 20, QFont.Weight.Bold))
@@ -268,6 +334,36 @@ class Map3DWidget(QWidget):
         self.time_val_entity.addComponent(self.text_mat)
         self.time_val_entity.addComponent(self.time_val_trans)
         self.time_val_entity.setEnabled(False)
+
+        # Label: BEST
+        self.best_label_entity = QEntity(self.board_entity)
+        self.best_label_mesh = QExtrudedTextMesh()
+        self.best_label_mesh.setFont(
+            QFont("monospace", 10, QFont.Weight.Normal)
+        )
+        self.best_label_mesh.setText("BEST")
+        self.best_label_mesh.setDepth(0.01)
+        self.best_label_trans = QTransform()
+        self.best_label_trans.setScale(0.12)
+        self.best_label_trans.setTranslation(QVector3D(0.5, 0.6, 0.06))
+        self.best_label_entity.addComponent(self.best_label_mesh)
+        self.best_label_entity.addComponent(self.text_mat)
+        self.best_label_entity.addComponent(self.best_label_trans)
+        self.best_label_entity.setEnabled(False)
+
+        # Value: BEST
+        self.best_val_entity = QEntity(self.board_entity)
+        self.best_val_mesh = QExtrudedTextMesh()
+        self.best_val_mesh.setFont(QFont("monospace", 20, QFont.Weight.Bold))
+        self.best_val_mesh.setText("00")
+        self.best_val_mesh.setDepth(0.01)
+        self.best_val_trans = QTransform()
+        self.best_val_trans.setScale(0.20)
+        self.best_val_trans.setTranslation(QVector3D(1.5, -0.6, 0.06))
+        self.best_val_entity.addComponent(self.best_val_mesh)
+        self.best_val_entity.addComponent(self.text_mat)
+        self.best_val_entity.addComponent(self.best_val_trans)
+        self.best_val_entity.setEnabled(False)
 
         # Start "Lancer le aimlab" text
         self.start_text_entity = QEntity(self.board_entity)
@@ -308,6 +404,12 @@ class Map3DWidget(QWidget):
         self.crosshair.addComponent(crosshair_mesh)
         self.crosshair.addComponent(crosshair_mat)
         self.crosshair.addComponent(crosshair_trans)
+
+    def _on_exit_clicked(self, pickEvent: Any = None) -> None:
+        """
+        Quitte le mode 3D/Aimlab et demande au main de réinitialiser la vue.
+        """
+        self.command_emitted.emit('reset')
 
     def showEvent(self, event: Any) -> None:
         super().showEvent(event)
@@ -386,15 +488,94 @@ class Map3DWidget(QWidget):
 
     def place_start_target(self) -> None:
         self.target_material.setDiffuse(QColor("white"))
-        self.target_transform.setTranslation(QVector3D(14.0, 2.8, 1.1))
+        self.target_base_x = 14.0
+        self.target_base_y = 2.8
+        self.target_base_z = 1.1
+        self.target_move_phase = 0.0
+        self.target_move_amplitude_x = 0.0
+        self.target_move_amplitude_y = 0.0
+        self.target_move_freq_x = 1.0
+        self.target_move_freq_y = 1.7
+        self.target_move_speed = 2.4
+        self.target_speed_target = 2.4
+        self.target_speed_change_timer = 0.8
+        self.target_transform.setTranslation(
+            QVector3D(self.target_base_x, self.target_base_y,
+                      self.target_base_z)
+        )
+
+    def reset_to_base_project(self) -> None:
+        self.game_timer.stop()
+        self.game_started = False
+        self.score = 0
+        self.time_left = 30
+        self.best_score = 0
+
+        self.place_start_target()
+
+        if hasattr(self, 'start_text_entity'):
+            self.start_text_entity.setEnabled(True)
+        if hasattr(self, 'score_label_entity'):
+            self.score_label_entity.setEnabled(False)
+        if hasattr(self, 'time_label_entity'):
+            self.time_label_entity.setEnabled(False)
+        if hasattr(self, 'score_val_entity'):
+            self.score_val_entity.setEnabled(False)
+        if hasattr(self, 'time_val_entity'):
+            self.time_val_entity.setEnabled(False)
+        if hasattr(self, 'best_label_entity'):
+            self.best_label_entity.setEnabled(False)
+        if hasattr(self, 'best_val_entity'):
+            self.best_val_entity.setEnabled(False)
+
+        self.win_trigger.emit()
 
     def place_target(self) -> None:
-        self.target_material.setDiffuse(QColor("cyan"))
+        self.target_material.setDiffuse(QColor("yellow"))
         # Spawn uniquement sur la longueur (mur du fond)
-        tx = random.uniform(2.0, 23.0)
-        ty = random.uniform(0.1, 1.8)
-        tz = 1.5
-        self.target_transform.setTranslation(QVector3D(tx, ty, tz))
+        self.target_base_x = random.uniform(2.0, 23.0)
+        self.target_base_y = random.uniform(0.1, 1.8)
+        self.target_base_z = 1.5
+        self.target_move_phase = random.uniform(0.0, math.tau)
+        self.target_move_amplitude_x = random.uniform(0.20, 0.70)
+        self.target_move_amplitude_y = random.uniform(0.06, 0.25)
+        self.target_move_freq_x = random.uniform(0.7, 1.4)
+        self.target_move_freq_y = random.uniform(1.2, 2.6)
+        self.target_move_speed = random.uniform(1.2, 4.0)
+        self.target_speed_target = self.target_move_speed
+        self.target_speed_change_timer = random.uniform(0.4, 1.3)
+        self.target_transform.setTranslation(
+            QVector3D(self.target_base_x, self.target_base_y,
+                      self.target_base_z)
+        )
+
+    def update_target_motion(self) -> None:
+        if not self.game_started or self.target_transform is None:
+            return
+
+        self.target_speed_change_timer -= 0.016
+        if self.target_speed_change_timer <= 0.0:
+            self.target_speed_target = random.uniform(1.0, 4.6)
+            self.target_speed_change_timer = random.uniform(0.35, 1.25)
+
+        self.target_move_speed += (
+            self.target_speed_target - self.target_move_speed
+        ) * 0.08
+
+        self.target_move_phase += self.target_move_speed * 0.016
+        offset_x = math.sin(
+            self.target_move_phase * self.target_move_freq_x
+        ) * self.target_move_amplitude_x
+        offset_y = math.cos(
+            self.target_move_phase * self.target_move_freq_y + 0.8
+        ) * self.target_move_amplitude_y
+
+        x_pos = max(1.8, min(23.2, self.target_base_x + offset_x))
+        y_pos = max(0.1, min(1.8, self.target_base_y + offset_y))
+
+        self.target_transform.setTranslation(
+            QVector3D(x_pos, y_pos, self.target_base_z)
+        )
 
     def on_target_clicked(self, pickEvent: Any) -> None:
         if not self.game_started:
@@ -408,11 +589,15 @@ class Map3DWidget(QWidget):
             if hasattr(self, 'start_text_entity'):
                 self.start_text_entity.setEnabled(False)
 
-            # Afficher le texte une fois lance
+            # Afficher score + time pendant la session
             self.score_label_entity.setEnabled(True)
             self.time_label_entity.setEnabled(True)
             self.score_val_entity.setEnabled(True)
             self.time_val_entity.setEnabled(True)
+            if hasattr(self, 'best_label_entity'):
+                self.best_label_entity.setEnabled(False)
+            if hasattr(self, 'best_val_entity'):
+                self.best_val_entity.setEnabled(False)
 
             if hasattr(self, 'score_val_mesh'):
                 self.score_val_mesh.setText(f"{self.score:02d}")
@@ -430,8 +615,27 @@ class Map3DWidget(QWidget):
         if self.time_left <= 0:
             self.game_timer.stop()
             self.game_started = False
+
+            if self.score > self.best_score:
+                self.best_score = self.score
+
             if hasattr(self, 'start_text_entity'):
                 self.start_text_entity.setEnabled(True)
+            if hasattr(self, 'score_label_entity'):
+                self.score_label_entity.setEnabled(False)
+            if hasattr(self, 'time_label_entity'):
+                self.time_label_entity.setEnabled(False)
+            if hasattr(self, 'score_val_entity'):
+                self.score_val_entity.setEnabled(False)
+            if hasattr(self, 'time_val_entity'):
+                self.time_val_entity.setEnabled(False)
+
+            if hasattr(self, 'best_label_entity'):
+                self.best_label_entity.setEnabled(True)
+            if hasattr(self, 'best_val_entity'):
+                self.best_val_entity.setEnabled(True)
+            if hasattr(self, 'best_val_mesh'):
+                self.best_val_mesh.setText(f"{self.best_score:02d}")
             self.place_start_target()
             return
 
@@ -518,6 +722,10 @@ class Map3DWidget(QWidget):
         return super().eventFilter(obj, event)
 
     def handle_key_press(self, key: Qt.Key) -> None:
+        if key == Qt.Key.Key_R or key == Qt.Key.Key_R.value:
+            self.reset_to_base_project()
+            return
+
         if key == Qt.Key.Key_Escape or key == Qt.Key.Key_Escape.value:
             import os
             QApplication.restoreOverrideCursor()
@@ -535,6 +743,8 @@ class Map3DWidget(QWidget):
             os._exit(0)
 
     def process_movement(self) -> None:
+        self.update_target_motion()
+
         speed = 0.5
         pos = self.camera.position()
         view = self.camera.viewCenter()
