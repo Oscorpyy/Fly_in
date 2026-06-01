@@ -9,7 +9,7 @@ sync:
 
 run:
 	@echo "Lancement de la simulation avec la carte: $(MAP)"
-	@uv run python sources/main.py $(MAP)
+	@QT_LOGGING_RULES="Qt3D.Renderer.RHI.Backend=false" uv run python sources/main.py $(MAP)
 
 debug:
 	@printf "\033[33m--------------------------------------------------------\033[0m\n"
@@ -20,7 +20,7 @@ debug:
 	@printf "  -> \033[33ml\033[0m (list)  : Affiche le code autour de la ligne actuelle\n"
 	@printf "  -> \033[33mq\033[0m (quit)  : Quitte le debugger\n"
 	@printf "\033[33m--------------------------------------------------------\033[0m\n"
-	@uv run python -m pdb sources/main.py $(MAP)
+	@QT_LOGGING_RULES="Qt3D.Renderer.RHI.Backend=false" uv run python -m pdb sources/main.py $(MAP)
 
 clean:
 	@echo "Cleaning up..."

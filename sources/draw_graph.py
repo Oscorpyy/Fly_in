@@ -2,7 +2,7 @@ from typing import Dict, Any
 import math
 from PyQt6.QtWidgets import QWidget, QLabel, QGraphicsColorizeEffect
 from PyQt6.QtGui import (QPainter, QPen, QColor, QBrush, QMovie,
-                         QConicalGradient, QPixmap)
+                         QConicalGradient, QPixmap, QMouseEvent)
 from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QSize, QTimer, QRect
 from constant import Default, Color
 from game import Player
@@ -356,6 +356,32 @@ class GraphWidget(QWidget):
 
         self.update()
 
+    def prev_turn(self) -> None:
+        """Reconstitue l'état un tour en arrière en rejouant depuis le départ.
+
+        Plutôt que d'essayer d'inverser localement les `wait_turns` et
+        autres règles (complexe et sujet à erreurs), on réinitialise
+        l'état des drones puis on applique `next_turn()` autant de fois
+        que nécessaire pour atteindre l'état du tour précédent.
+        Cela garantit que les délais (wait_turns) sont correctement pris
+        en compte.
+        """
+        if not self.calculated_paths:
+            return
+
+        if self.nb_turns == 0:
+            return
+
+        target = max(0, self.nb_turns - 1)
+
+        # Sauvegarder la configuration actuelle minimale (au besoin)
+        # Réinitialiser et rejouer jusqu'au tour cible
+        self.reset_drones()
+
+        for _ in range(target):
+            # next_turn incrémente self.nb_turns et applique la logique
+            self.next_turn()
+
     def print_nb_turns(self) -> None:
         """Met à jour le texte et l'apparence de la popup des tours."""
         self.turn_label.setText(f"TOURS : {self.nb_turns}")
@@ -703,7 +729,7 @@ class GraphWidget(QWidget):
 
         painter.end()
 
-    def mouseMoveEvent(self, event: Any) -> None:
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Détecte si la souris survole un des noeuds dessinés."""
         pos = event.position()
         hovered_name = ""
@@ -730,7 +756,7 @@ class GraphWidget(QWidget):
                 else:
                     self.node_hovered.emit("")
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Fixe l'affichage d'un hub au clic."""
         pos = event.position()
         for name, (node_pos, radius) in self._drawn_nodes.items():

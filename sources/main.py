@@ -1,8 +1,9 @@
 import sys
 import signal
+import os
 from typing import List, Dict, Any
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
 from parsing import get_args
 from parsing_text import parse_map_text
 from output import print_simulation_output
@@ -12,6 +13,16 @@ from terminal import Terminal
 from pathfinding import Graph, Zone, PathFinder
 from map import Map3DWidget
 from PyQt6.QtCore import QTimer
+
+
+def _qt_log_filter(mode, context, message) -> None:
+    """Filtre les logs Qt bruyants non critiques."""
+    if "Qt3D.Renderer.RHI.Backend" in message:
+        return
+
+    # Fallback minimal pour conserver les autres logs Qt.
+    # (écrit sur stderr comme le handler Qt par défaut)
+    print(message, file=sys.stderr)
 
 
 class DroneSimulationWindow(QMainWindow):
@@ -109,6 +120,18 @@ class DroneSimulationWindow(QMainWindow):
         """Déclenché par le terminal lors de
         l'exécution d'une commande système."""
         if cmd == 'show path':
+            # Si on est en game mode, on le désactive pour afficher les drones
+            if getattr(self.graph_view, 'game_mode', False):
+                if hasattr(self.graph_view, 'toggle_game_mode'):
+                    self.graph_view.toggle_game_mode()
+                self.GameMode = 0
+                # forcer une mise à jour visuelle
+                try:
+                    self.graph_view.update()
+                    self.update()
+                except Exception:
+                    pass
+
             if not self.graph_view.calculated_paths:
                 error_msg = "❌ Erreur : Impossible d'afficher le chemin." \
                     "Aucun chemin n'a été trouvé !"
@@ -340,6 +363,38 @@ class DroneSimulationWindow(QMainWindow):
                 else:
                     self.graph_view.animation_timer.start(16)
         elif event.key() == Qt.Key.Key_P:
+            # Ctrl+P : revenir d'un tour
+            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                # Désactiver le mode jeu pour afficher les drones
+                if getattr(self.graph_view, 'game_mode', False):
+                    if hasattr(self.graph_view, 'toggle_game_mode'):
+                        self.graph_view.toggle_game_mode()
+                    self.GameMode = 0
+                    try:
+                        self.graph_view.update()
+                        self.update()
+                    except Exception:
+                        pass
+
+                if hasattr(self.graph_view, 'prev_turn'):
+                    self.graph_view.prev_turn()
+                    self.graph_view.print_nb_turns()
+                    if hasattr(self, 'menu_view'):
+                        self.menu_view.update()
+                return
+
+            # Touche P normale : avancer d'un tour (comportement existant)
+            # Si on est en game mode, on le désactive pour afficher les drones
+            if getattr(self.graph_view, 'game_mode', False):
+                if hasattr(self.graph_view, 'toggle_game_mode'):
+                    self.graph_view.toggle_game_mode()
+                self.GameMode = 0
+                try:
+                    self.graph_view.update()
+                    self.update()
+                except Exception:
+                    pass
+
             if (hasattr(self.graph_view, 'animation_timer') and
                     self.graph_view.animation_timer.isActive()):
                 return
@@ -381,6 +436,22 @@ class DroneSimulationWindow(QMainWindow):
 
 
 def main() -> None:
+    # Renfort: règle d'environnement lue par Qt logging.
+    current_rules = os.environ.get("QT_LOGGING_RULES", "")
+    extra_rule = "Qt3D.Renderer.RHI.Backend=false"
+    if extra_rule not in current_rules:
+        os.environ["QT_LOGGING_RULES"] = (
+            f"{current_rules};{extra_rule}" if current_rules else extra_rule
+        )
+
+    # Supprime le log info Qt3D suivant :
+    # "Qt3D.Renderer.RHI.Backend: Initializing RHI with OpenGL backend"
+    QLoggingCategory.setFilterRules(
+        "Qt3D.Renderer.RHI.Backend=false\n"
+        "Qt3D.Renderer.RHI.Backend.info=false"
+    )
+    qInstallMessageHandler(_qt_log_filter)
+
     # Récupération et parsing des données
     args = get_args()
     map_data = parse_map_text(args['map_path'])

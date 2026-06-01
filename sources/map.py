@@ -61,7 +61,7 @@ class Map3DWidget(QWidget):
         self.move_timer.timeout.connect(self.process_movement)
         self.move_timer.start(16)
 
-# Forcer le focus pour que les touches de deplacement marchent
+        # Forcer le focus pour que les touches de deplacement marchent
         self.container.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.container.setMouseTracking(True)
         self.view.installEventFilter(self)
@@ -285,11 +285,25 @@ class Map3DWidget(QWidget):
         self.score_label_mesh.setDepth(0.01)
         self.score_label_trans = QTransform()
         self.score_label_trans.setScale(0.12)
-        self.score_label_trans.setTranslation(QVector3D(-3.8, 0.6, 0.06))
+        self.score_label_trans.setTranslation(QVector3D(-2.5, 0.5, 0.06))
         self.score_label_entity.addComponent(self.score_label_mesh)
         self.score_label_entity.addComponent(self.text_mat)
         self.score_label_entity.addComponent(self.score_label_trans)
         self.score_label_entity.setEnabled(False)
+
+        # Value: SCORE
+        self.score_val_entity = QEntity(self.board_entity)
+        self.score_val_mesh = QExtrudedTextMesh()
+        self.score_val_mesh.setFont(QFont("monospace", 20, QFont.Weight.Bold))
+        self.score_val_mesh.setText("00")
+        self.score_val_mesh.setDepth(0.01)
+        self.score_val_trans = QTransform()
+        self.score_val_trans.setScale(0.20)
+        self.score_val_trans.setTranslation(QVector3D(-2.5, -0.5, 0.06))
+        self.score_val_entity.addComponent(self.score_val_mesh)
+        self.score_val_entity.addComponent(self.text_mat)
+        self.score_val_entity.addComponent(self.score_val_trans)
+        self.score_val_entity.setEnabled(False)
 
         # Label: TIME
         self.time_label_entity = QEntity(self.board_entity)
@@ -301,25 +315,11 @@ class Map3DWidget(QWidget):
         self.time_label_mesh.setDepth(0.01)
         self.time_label_trans = QTransform()
         self.time_label_trans.setScale(0.12)
-        self.time_label_trans.setTranslation(QVector3D(0.5, 0.6, 0.06))
+        self.time_label_trans.setTranslation(QVector3D(1.5, 0.5, 0.06))
         self.time_label_entity.addComponent(self.time_label_mesh)
         self.time_label_entity.addComponent(self.text_mat)
         self.time_label_entity.addComponent(self.time_label_trans)
         self.time_label_entity.setEnabled(False)
-
-        # Value: SCORE
-        self.score_val_entity = QEntity(self.board_entity)
-        self.score_val_mesh = QExtrudedTextMesh()
-        self.score_val_mesh.setFont(QFont("monospace", 20, QFont.Weight.Bold))
-        self.score_val_mesh.setText("00")
-        self.score_val_mesh.setDepth(0.01)
-        self.score_val_trans = QTransform()
-        self.score_val_trans.setScale(0.20)
-        self.score_val_trans.setTranslation(QVector3D(-3.0, -0.6, 0.06))
-        self.score_val_entity.addComponent(self.score_val_mesh)
-        self.score_val_entity.addComponent(self.text_mat)
-        self.score_val_entity.addComponent(self.score_val_trans)
-        self.score_val_entity.setEnabled(False)
 
         # Value: TIME
         self.time_val_entity = QEntity(self.board_entity)
@@ -329,7 +329,7 @@ class Map3DWidget(QWidget):
         self.time_val_mesh.setDepth(0.01)
         self.time_val_trans = QTransform()
         self.time_val_trans.setScale(0.20)
-        self.time_val_trans.setTranslation(QVector3D(1.5, -0.6, 0.06))
+        self.time_val_trans.setTranslation(QVector3D(1.5, -0.5, 0.06))
         self.time_val_entity.addComponent(self.time_val_mesh)
         self.time_val_entity.addComponent(self.text_mat)
         self.time_val_entity.addComponent(self.time_val_trans)
@@ -345,7 +345,7 @@ class Map3DWidget(QWidget):
         self.best_label_mesh.setDepth(0.01)
         self.best_label_trans = QTransform()
         self.best_label_trans.setScale(0.12)
-        self.best_label_trans.setTranslation(QVector3D(0.5, 0.6, 0.06))
+        self.best_label_trans.setTranslation(QVector3D(2.5, 0.5, 0.06))
         self.best_label_entity.addComponent(self.best_label_mesh)
         self.best_label_entity.addComponent(self.text_mat)
         self.best_label_entity.addComponent(self.best_label_trans)
@@ -359,7 +359,7 @@ class Map3DWidget(QWidget):
         self.best_val_mesh.setDepth(0.01)
         self.best_val_trans = QTransform()
         self.best_val_trans.setScale(0.20)
-        self.best_val_trans.setTranslation(QVector3D(1.5, -0.6, 0.06))
+        self.best_val_trans.setTranslation(QVector3D(2.5, -0.5, 0.06))
         self.best_val_entity.addComponent(self.best_val_mesh)
         self.best_val_entity.addComponent(self.text_mat)
         self.best_val_entity.addComponent(self.best_val_trans)
@@ -818,3 +818,15 @@ class Map3DWidget(QWidget):
 
             self.camera.setPosition(pos)
             self.camera.setViewCenter(view)
+
+    def update_score_display(self, current_score: int) -> None:
+        """Met à jour le texte complet du score."""
+        self.score_mesh.setText(f"Score: {current_score}")
+
+    def update_time_display(self, current_time: float) -> None:
+        """Met à jour le texte complet du temps."""
+        self.time_mesh.setText(f"Time: {current_time:.1f}s")
+
+    def update_best_score_display(self, best_score: int) -> None:
+        """Met à jour le texte complet du meilleur score."""
+        self.best_score_mesh.setText(f"Best Score: {best_score}")
