@@ -1,7 +1,7 @@
 from typing import Dict, Any
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtGui import QPainter, QPen, QBrush, QFont
-from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtCore import Qt, QRect, QTimer
 from PyQt6.QtCore import pyqtSignal
 from constant import Default, Color
 
@@ -27,6 +27,9 @@ class MenuWidget(QWidget):
         self.custom_colors: Dict[str, str] = {}
         self.scroll_y = 0
         self.max_scroll = 0
+        self._persistent_occ: dict[str, int] = {}
+        self._occ_timers: dict[str, QTimer] = {}
+        self.PERSIST_MS = 800  # durée d'affichage en ms après départ du drone
 
         # Ensure the widget properly paints its own background
         self.setAutoFillBackground(True)
@@ -166,16 +169,26 @@ class MenuWidget(QWidget):
                     n_occ = occupied_counts.get(p_node, 0) + 1
                     occupied_counts[p_node] = n_occ
             else:
+                raw_counts: dict[str, int] = {}
                 for drone_id, drone in enumerate(graph_view.drones):
                     assigned_path = graph_view.calculated_paths.get(drone_id)
                     if not assigned_path:
                         continue
-
                     step = drone.get('step', 0)
+                    progress = float(drone.get('progress', 0.0))
+                    if progress > 1e-9:
+                        continue
                     if 0 <= step < len(assigned_path):
                         node = assigned_path[step]
-                        n_occ = occupied_counts.get(node, 0) + 1
-                        occupied_counts[node] = n_occ
+                        raw_counts[node] = raw_counts.get(node, 0) + 1
+
+                for node, cnt in raw_counts.items():
+                    self.notify_drone_on_hub(node, cnt)
+
+                for node, cnt in self._persistent_occ.items():
+                    occupied_counts[node] = max(occupied_counts.get(node, 0),
+                                                cnt)
+                occupied_counts.update(raw_counts)
 
         for hub_name, hub_data in self.map_data.get('hubs', {}).items():
             t = hub_data.get('type', '')
@@ -472,4 +485,24 @@ class MenuWidget(QWidget):
             self.scroll_y = 0
         if self.scroll_y > self.max_scroll:
             self.scroll_y = self.max_scroll
+        self.update()
+
+    def notify_drone_on_hub(self, hub_name: str, count: int) -> None:
+        """Signale qu'un drone est sur ce hub ; maintient l'affichage X ms."""
+        self._persistent_occ[hub_name] = count
+
+        # Recrée le timer pour ce hub (reset le délai à chaque passage)
+        if hub_name in self._occ_timers:
+            self._occ_timers[hub_name].stop()
+        else:
+            t = QTimer(self)
+            t.setSingleShot(True)
+            t.timeout.connect(lambda n=hub_name: self._clear_hub(n))
+            self._occ_timers[hub_name] = t
+
+        self._occ_timers[hub_name].start(self.PERSIST_MS)
+        self.update()
+
+    def _clear_hub(self, hub_name: str) -> None:
+        self._persistent_occ.pop(hub_name, None)
         self.update()

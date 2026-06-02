@@ -551,6 +551,19 @@ class GraphWidget(QWidget):
                 drone['progress'] = progress
                 drone['progress'] = progress
 
+        window: Any = self.window()
+        if hasattr(window, 'menu_view'):
+            menu = window.menu_view
+            for drone_id, drone in enumerate(self.drones):
+                assigned_path = self.calculated_paths.get(drone_id)
+                if not assigned_path:
+                    continue
+                step = drone.get('step', 0)
+                progress = float(drone.get('progress', 0.0))
+                if progress < 1e-9 and 0 <= step < len(assigned_path):
+                    node = assigned_path[step]
+                    if hasattr(menu, 'notify_drone_on_hub'):
+                        menu.notify_drone_on_hub(node, 1)
         self.update()
 
         # Ensure menu updates to see real-time stats
