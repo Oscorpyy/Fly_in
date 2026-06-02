@@ -566,8 +566,6 @@ class GraphWidget(QWidget):
                         menu.notify_drone_on_hub(node, 1)
         self.update()
 
-        # Ensure menu updates to see real-time stats
-        window: Any = self.window()
         if hasattr(window, 'menu_view'):
             window.menu_view.update()
 
