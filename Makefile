@@ -1,5 +1,25 @@
+# **************************************************************************** #
+#                                                                              #
+#                                                         :::      ::::::::    #
+#    Makefile                                           :+:      :+:    :+:    #
+#                                                     +:+ +:+         +:+      #
+#    By: opernod <opernod@student.42lyon.fr>        +#+  +:+       +#+         #
+#                                                 +#+#+#+#+#+   +#+            #
+#    Created: 2026/06/02 12:07:37 by opernod           #+#    #+#              #
+#    Updated: 2026/06/02 12:45:40 by opernod          ###   ########lyon.fr    #
+#                                                                              #
+# **************************************************************************** #
+
 SRC_DIR = sources
 MAP ?= challenger_01
+
+# Colors
+COLOR_RESET = \033[0m
+COLOR_CYAN = \033[36m
+COLOR_GREEN = \033[32m
+COLOR_RED = \033[31m
+COLOR_YELLOW = \033[33m
+COLOR_MAGENTA = \033[35m
 
 all: run
 
@@ -38,16 +58,22 @@ re: clean run
 
 lint:
 	@printf "\033[34mRunning flake8...\033[0m\n"
-	@uv run flake8 --max-line-length=120 $(SRC_DIR)/ && printf "\033[32m[OK]\033[0m Flake8\n"
+	@uv run python -m flake8 $(SRC_DIR)/ && printf "\033[32m[OK]\033[0m Flake8\n"
 	@printf "\033[34mRunning mypy...\033[0m\n"
-	@uv run mypy $(SRC_DIR)/ && printf "\033[32m[OK]\033[0m Mypy\n"
+	@uv run python -m mypy $(SRC_DIR)/ --warn-return-any \
+	--warn-unused-ignores \
+	--ignore-missing-imports \
+	--disallow-untyped-defs \
+	--check-untyped-defs && printf "\033[32m[OK]\033[0m Mypy\n"
 	@printf "\033[34mLinting complete.\033[0m\n"
+
 
 lint-strict:
 	@printf "\033[34mRunning flake8 with strict settings...\033[0m\n"
-	@uv run flake8 --max-line-length=120 $(SRC_DIR)/ && printf "\033[32m[OK]\033[0m Flake8\n"
+	@uv run python -m flake8 $(SRC_DIR)/ && printf "\033[32m[OK]\033[0m Flake8\n"
 	@printf "\033[34mRunning mypy with strict settings...\033[0m\n"
-	@uv run mypy $(SRC_DIR)/ --strict && printf "\033[32m[OK]\033[0m Mypy\n"
+	@uv run python -m mypy $(SRC_DIR) --strict && printf "\033[32m[OK]\033[0m Mypy\n"
 	@printf "\033[34mStrict linting complete.\033[0m\n"
+
 
 .PHONY: all sync run debug clean re lint lint-strict

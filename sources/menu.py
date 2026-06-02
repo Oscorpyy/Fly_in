@@ -28,7 +28,7 @@ class MenuWidget(QWidget):
         self.scroll_y = 0
         self.max_scroll = 0
 
-        # S'assurer que le widget peint bien son propre fond
+        # Ensure the widget properly paints its own background
         self.setAutoFillBackground(True)
         palette = self.palette()
         bg_color = Default.BACKGROUND.qcolor()
@@ -42,7 +42,6 @@ class MenuWidget(QWidget):
         Args:
             event (Any): The wheel event.
         """
-        """Gère le défilement de la liste des capacités."""
         delta = event.angleDelta().y()
         if delta > 0:
             self.scroll_y -= 40
@@ -90,7 +89,6 @@ class MenuWidget(QWidget):
         """
         Resets all menu UI colors to defaults.
         """
-        """Réinitialise les couleurs du menu et notifie le système."""
         self.custom_colors.clear()
 
         palette = self.palette()
@@ -107,21 +105,20 @@ class MenuWidget(QWidget):
         Args:
             event (Any): The paint event.
         """
-        """Méthode appelée automatiquement par Qt pour dessiner le widget."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # --- DESSIN DE L'OUTLINE (BORDURE) ---
-
-        # 1. On configure le stylo (QPen)
+        # Draw outline (border)
+        # Configure pen (QPen)
         pen_thickness = 4
 
-        # On utilise la couleur par défaut MENU, sauf si la map en précise une
+        # Use default MENU color unless map specifies otherwise
         pen_color = Default.MENU.qcolor()
         if 'menu' in self.map_data and 'color' in self.map_data['menu']:
             pen_color = Color.get_qcolor(self.map_data['menu']['color'],
                                          default=Default.MENU)
 
+        # Override with custom color if set
         if 'menu' in self.custom_colors:
             pen_color = Color.get_qcolor(self.custom_colors['menu'],
                                          default=Default.MENU)
@@ -203,12 +200,12 @@ class MenuWidget(QWidget):
 
             max_caps[hub_name] = max_cap
 
-        # Dessin d'un diagramme en barres
+        # Draw capacity bars diagram
         if max_caps:
             painter.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
             painter.setPen(text_color)
 
-            # Paramètres de centrage et de taille pour les barres
+            # Parameters for centering and sizing the bars
             total_width = left_rect.width()
             text_x = left_rect.left() + int(total_width * 0.1)
             bar_x = left_rect.left() + int(total_width * 0.3)
@@ -219,7 +216,7 @@ class MenuWidget(QWidget):
             painter.drawText(title_rect,
                              Qt.AlignmentFlag.AlignTop |
                              Qt.AlignmentFlag.AlignHCenter,
-                             "- CAPACITÉS DE TOUS LES HUBS -")
+                             "- HUB CAPACITIES -")
 
             list_rect = left_rect.adjusted(0, 40, -10, -5)
             content_h = len(max_caps) * 28
@@ -237,7 +234,7 @@ class MenuWidget(QWidget):
 
                 occ = occupied_counts.get(hub_name, 0)
 
-                # Nom du hub aligné à droite de la zone texte
+                # Hub name aligned to the right of the text area
                 name_rect = QRect(text_x, y_offset, bar_x - text_x - 10,
                                   bar_height)
                 painter.setPen(text_color)
@@ -246,7 +243,7 @@ class MenuWidget(QWidget):
                                  Qt.AlignmentFlag.AlignVCenter,
                                  hub_name[:12])
 
-                # Barre de fond (place totale)
+                # Background bar (total capacity)
                 bg_rect = QRect(bar_x, y_offset, bar_max_width, bar_height)
                 bg_color = Default.CAPACITY_BAR_BG.qcolor()
                 if 'capacity_bar_bg' in self.custom_colors:
@@ -257,7 +254,7 @@ class MenuWidget(QWidget):
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.drawRect(bg_rect)
 
-                # Barre remplie (place prise)
+                # Filled bar (occupied capacity)
                 ratio = min(occ, m_cap) / max(1, m_cap)
                 fill_width = int(ratio * bar_max_width)
                 if occ > m_cap:
@@ -280,7 +277,7 @@ class MenuWidget(QWidget):
                 painter.setBrush(QBrush(fill_color))
                 painter.drawRect(fill_rect)
 
-                # Texte X/Y centré dans la barre
+                # X/Y text centered in the bar
                 painter.setPen(text_color)
                 painter.drawText(bg_rect, Qt.AlignmentFlag.AlignCenter,
                                  f"{occ} / {m_cap}")
@@ -289,14 +286,14 @@ class MenuWidget(QWidget):
 
             painter.setClipping(False)
 
-            # --- Scrollbar paramétrable à gauche ---
+            # Scrollbar on the left
             if self.max_scroll > 0:
                 scrollbar_width = 8
                 scrollbar_x = left_rect.left() + 10
 
                 track_rect = QRect(scrollbar_x, list_rect.top(),
                                    scrollbar_width, list_rect.height())
-                # Couleur du fond de scrollbar
+                # Scrollbar background color
                 scroll_bg = Default.SCROLL_BAR_BG.qcolor()
 
                 if 'scroll_bar_bg' in self.custom_colors:
@@ -328,7 +325,7 @@ class MenuWidget(QWidget):
                 painter.setBrush(QBrush(scroll_thumb))
                 painter.drawRect(thumb_rect)
 
-        # --- DESSIN DES INFOS (Côté Droit) ---
+        # Draw information panel (right side)
         if self.hovered_node:
             hubs = self.map_data.get('hubs', {})
             node_data = hubs.get(self.hovered_node)

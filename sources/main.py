@@ -47,7 +47,7 @@ class DroneSimulationWindow(QMainWindow):
         # Ensure default cursor is visible
         QApplication.restoreOverrideCursor()
 
-        # Timer pour le mode random auto
+        # Timer for auto random mode
         self.random_auto_timer = QTimer(self)
         self.random_auto_timer.timeout.connect(self.trigger_randomize)
 
@@ -60,43 +60,43 @@ class DroneSimulationWindow(QMainWindow):
         ]
         self.konami_sequence: List[int] = []
 
-        # Configuration de la fenêtre
+        # Configure the main window
         self.setWindowTitle("Fly-in")
         self.showMaximized()
 
-        # Création d'un widget central et de son layout
+        # Create central widget and layout
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Ajout du composant graphique personnalisé
+        # Add custom graph component
         self.graph_view = GraphWidget(map_data, self)
         layout.addWidget(self.graph_view)
 
-        # Ajout du composant menu personnalisé
+        # Add custom menu component
         self.menu_view = MenuWidget(map_data, self)
         layout.addWidget(self.menu_view)
         self.menu_view.graph_reset_requested.connect(
                 self.graph_view.reset_graph_colors
             )
 
-        # Ajout du terminal en "surimpression" (overlay)
+        # Add the terminal as an overlay
         self.terminal_view = Terminal(central_widget)
 
-        # Ajout de la map 3D (cachée par défaut)
-        self.GameMode = 0
+        # Add the 3D map (hidden by default)
+        self.game_mode_state = 0
         self.map_3d_view = Map3DWidget(map_data, self)
         self.map_3d_view.hide()
         layout.addWidget(self.map_3d_view)
 
-        # -- CONNEXION --
+        # Connect signals for inter-widget communication
         self.map_3d_view.win_trigger.connect(self.transition_to_2d_graph)
         self.graph_view.node_hovered.connect(self.menu_view.on_node_hovered)
         self.terminal_view.command_emitted.connect(self.on_terminal_command)
 
-        # La ligne magique qu'il te manquait :
+        # The missing connection line:
         self.map_3d_view.command_emitted.connect(self.on_terminal_command)
 
         self.keys_pressed: set[int] = set()
@@ -116,8 +116,8 @@ class DroneSimulationWindow(QMainWindow):
     def transition_to_2d_graph(self) -> None:
         """
         Transitions the view back to the 2D graph.
+        Returns to the normal menu after the game.
         """
-        """Ramène au menu normal après le jeu."""
         if hasattr(self, 'map_3d_view'):
             self.map_3d_view.hide()
         if hasattr(self, 'graph_view'):
@@ -129,8 +129,8 @@ class DroneSimulationWindow(QMainWindow):
     def trigger_blackout(self) -> None:
         """
         Triggers a visual blackout effect.
+        Shows the 3D raycaster map for the Konami code.
         """
-        """Affiche la Map 3D raycaster pour le Konami code."""
         if hasattr(self, 'graph_view'):
             self.graph_view.hide()
         if hasattr(self, 'menu_view'):
@@ -141,15 +141,14 @@ class DroneSimulationWindow(QMainWindow):
             self.map_3d_view.setFocus()
 
     def on_terminal_command(self, cmd: str) -> None:
-        """Déclenché par le terminal lors de
-        l'exécution d'une commande système."""
+        """Triggered by the terminal when a system command is executed."""
         if cmd == 'show path':
-            # Si on est en game mode, on le désactive pour afficher les drones
+            # If game mode is active, disable it to display the drones
             if getattr(self.graph_view, 'game_mode', False):
                 if hasattr(self.graph_view, 'toggle_game_mode'):
                     self.graph_view.toggle_game_mode()
-                self.GameMode = 0
-                # forcer une mise à jour visuelle
+                self.game_mode_state = 0
+                # Force a visual refresh
                 try:
                     self.graph_view.update()
                     self.update()
@@ -185,12 +184,12 @@ class DroneSimulationWindow(QMainWindow):
                     self.graph_view.update_custom_color(zone_type, color_val)
         elif cmd == 'reset drone':
             if hasattr(self.graph_view, 'reset_drones'):
-                self.GameMode = 0
+                self.game_mode_state = 0
                 self.graph_view.reset_drones()
             if getattr(self.graph_view, 'game_mode', False):
                 self.graph_view.toggle_game_mode()
         elif cmd == 'reset':
-            self.GameMode = 0
+            self.game_mode_state = 0
             if hasattr(self, 'random_auto_timer'
                        ) and self.random_auto_timer.isActive():
                 self.random_auto_timer.stop()
@@ -225,10 +224,10 @@ class DroneSimulationWindow(QMainWindow):
                 self.graph_view.toggle_game_mode()
             self.graph_view.update()
             self.update()
-            if self.GameMode == 0:
-                self.GameMode = 1
-            elif self.GameMode == 1:
-                self.GameMode = 0
+            if self.game_mode_state == 0:
+                self.game_mode_state = 1
+            elif self.game_mode_state == 1:
+                self.game_mode_state = 0
         elif cmd.startswith('random color auto'):
             parts = cmd.split()
             delay_sec = 10
@@ -281,16 +280,16 @@ class DroneSimulationWindow(QMainWindow):
                 f"✅ Chargement réussi de '{resolved_path}'...")
             self.terminal_view.toggle_visibility()
 
-        # Parse la nouvelle map
+        # Parse the new map
         new_map_data = parse_map_text(resolved_path)
 
-        # --- RECALCUL DU PATHFINDING POUR LA NOUVELLE MAP ---
+        # Rebuild the graph and pathfinding with the new map data
         graph = Graph()
         for name, hub_data in new_map_data.get('hubs', {}).items():
             z_type = "normal"
             attributes = hub_data.get('attributes', {})
 
-            # Vérifier que ce soit dans les clés OU dans les valeurs
+            # Check both keys and values for attributes to determine zone type
             if 'restricted' in attributes or 'restricted' in attributes.values(
                     ):
                 z_type = "restricted"
@@ -323,7 +322,7 @@ class DroneSimulationWindow(QMainWindow):
                 print_simulation_output(drone_paths, new_map_data)
             else:
                 error_msg = "❌ Erreur : Impossible d'atteindre le"
-                f"hub cible depuis {start_hubs[0]} vers"
+                f"target hub from {start_hubs[0]} to"
                 f"{end_hubs[0]} !"
                 print(error_msg)
                 if hasattr(self, 'terminal_view'):
@@ -336,7 +335,6 @@ class DroneSimulationWindow(QMainWindow):
                 self.terminal_view.print_line(error_msg)
                 self.terminal_view.show()
 
-        # --- REMPLACEMENT DES WIDGETS ---
         central = self.centralWidget()
         if central is not None:
             layout = central.layout()
@@ -361,16 +359,16 @@ class DroneSimulationWindow(QMainWindow):
     def keyPressEvent(self, event: Any) -> None:
         """
         Handles main window key press events.
+        Handles keyboard events (e.g. Escape to quit).
 
         Args:
             event (Any): The key press event.
         """
-        """Gère les événements clavier (ex: Echap pour quitter)."""
         if not event.isAutoRepeat():
             self.keys_pressed.add(event.key())
 
-        in_3d_mode = hasattr(self,
-                             'map_3d_view') and self.map_3d_view.isVisible()
+        has_3d_view = hasattr(self, 'map_3d_view')
+        in_3d_mode = has_3d_view and self.map_3d_view.isVisible()
         if in_3d_mode and event.key() not in (Qt.Key.Key_T, Qt.Key.Key_Escape):
             self.map_3d_view.handle_key_press(event.key())
 
@@ -378,7 +376,8 @@ class DroneSimulationWindow(QMainWindow):
         if len(self.konami_sequence) > len(self.konami_code):
             self.konami_sequence.pop(0)
 
-        if self.konami_sequence == self.konami_code and self.GameMode == 1:
+        if self.konami_sequence == self.konami_code and \
+                self.game_mode_state == 1:
             self.trigger_blackout()
             self.konami_sequence.clear()
 
@@ -398,13 +397,13 @@ class DroneSimulationWindow(QMainWindow):
                 else:
                     self.graph_view.animation_timer.start(16)
         elif event.key() == Qt.Key.Key_P:
-            # Ctrl+P : revenir d'un tour
+            # Ctrl+P: go back one turn
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                 # Désactiver le mode jeu pour afficher les drones
                 if getattr(self.graph_view, 'game_mode', False):
                     if hasattr(self.graph_view, 'toggle_game_mode'):
                         self.graph_view.toggle_game_mode()
-                    self.GameMode = 0
+                    self.game_mode_state = 0
                     try:
                         self.graph_view.update()
                         self.update()
@@ -418,12 +417,12 @@ class DroneSimulationWindow(QMainWindow):
                         self.menu_view.update()
                 return
 
-            # Touche P normale : avancer d'un tour (comportement existant)
-            # Si on est en game mode, on le désactive pour afficher les drones
+            # Normal P key: advance one turn (existing behavior)
+            # If game mode is active, disable it to display the drones
             if getattr(self.graph_view, 'game_mode', False):
                 if hasattr(self.graph_view, 'toggle_game_mode'):
                     self.graph_view.toggle_game_mode()
-                self.GameMode = 0
+                self.game_mode_state = 0
                 try:
                     self.graph_view.update()
                     self.update()
@@ -471,13 +470,13 @@ class DroneSimulationWindow(QMainWindow):
     def resizeEvent(self, event: Any) -> None:
         """
         Handles resizing of the main window and overlays.
+        Ensures the terminal overlay is correctly repositioned.
 
         Args:
             event (Any): The resize event.
         """
-        """Gère le redimensionnement de la fenêtre."""
         super().resizeEvent(event)
-        # On s'assure que le terminal se repositionne correctement en bas
+        # Ensure the terminal is correctly repositioned at the bottom
         if hasattr(self, 'terminal_view') and self.terminal_view.isVisible():
             self.terminal_view.resize_to_parent()
 
@@ -486,7 +485,7 @@ def main() -> None:
     """
     Main application entry point.
     """
-    # Renfort: règle d'environnement lue par Qt logging.
+    # Safety: environment rule read by Qt logging.
     current_rules = os.environ.get("QT_LOGGING_RULES", "")
     extra_rule = "Qt3D.Renderer.RHI.Backend=false"
     if extra_rule not in current_rules:
@@ -494,7 +493,7 @@ def main() -> None:
             f"{current_rules};{extra_rule}" if current_rules else extra_rule
         )
 
-    # Supprime le log info Qt3D suivant :
+    # Remove the following Qt3D info log:
     # "Qt3D.Renderer.RHI.Backend: Initializing RHI with OpenGL backend"
     QLoggingCategory.setFilterRules(
         "Qt3D.Renderer.RHI.Backend=false\n"
@@ -502,18 +501,18 @@ def main() -> None:
     )
     qInstallMessageHandler(_qt_log_filter)
 
-    # Récupération et parsing des données
+    # Load and parse the data
     args = get_args()
     map_data = parse_map_text(args['map_path'])
-    # --- INITIALISATION DU PATHFINDING ---
+    # --- PATHFINDING INITIALIZATION ---
     graph = Graph()
 
-    # 1. Ajout des zones (hubs)
+    # 1. Add zones (hubs)
     for name, hub_data in map_data.get('hubs', {}).items():
         z_type = "normal"
         attributes = hub_data.get('attributes', {})
 
-        # Vérifier que ce soit dans les clés OU dans les valeurs
+        # Check both keys and values
         if 'restricted' in attributes or 'restricted' in attributes.values():
             z_type = "restricted"
         elif 'priority' in attributes or 'priority' in attributes.values():
@@ -524,14 +523,14 @@ def main() -> None:
         capacity = attributes.get('capacity', 1)
         graph.add_zone(Zone(name=name, z_type=z_type, capacity=capacity))
 
-    # 2. Ajout des connexions
+    # 2. Add connections
     for conn in map_data.get('connections', []):
         graph.add_connection(conn['from'], conn['to'])
 
-    # 3. Lancement de la recherche de chemin
+    # 3. Run the path search
     pf = PathFinder(graph)
 
-    # On trouve le hub de départ et d'arrivée
+    # Find the start and end hubs
     start_hubs = [name for name,
                   d in map_data['hubs'].items()
                   if d['type'] == 'start_hub']
@@ -539,11 +538,11 @@ def main() -> None:
                 d in map_data['hubs'].items()
                 if d['type'] == 'end_hub']
 
-    # Si on trouve bien un départ et une arrivée, on résout !
+    # If both start and end hubs exist, solve the map
     if start_hubs and end_hubs:
         shortest_path = pf.find_shortest_path(start_hubs[0], end_hubs[0])
 
-        # Si on a trouvé un chemin, on demande la répartition des drones
+        # If a path was found, dispatch the drones
         if shortest_path:
             nb_drones = int(map_data.get('nb_drones', 1))
             drone_paths = pf.dispatch_drones(start_hubs[0], end_hubs[0],

@@ -50,8 +50,8 @@ def get_args() -> Dict[str, Any]:
     """
     if len(sys.argv) != 2:
         print("Error: Invalid number of arguments.")
-        print("Usage: python main.py <chemin_vers_map.txt> OU "
-              "<dossier>_<numero> (ex: challenger_01)")
+        print("Usage: python main.py <path_to_map.txt> OR "
+              "<folder>_<number> (ex: challenger_01)")
         sys.exit(1)
 
     input_arg = sys.argv[1]

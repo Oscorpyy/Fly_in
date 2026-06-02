@@ -52,7 +52,7 @@ class Graph:
             self.edges[zone1].append(zone2)
             self.edges[zone2].append(zone1)
         else:
-            print(f"⚠️ Warning: Cannot connect {zone1} et {zone2}"
+            print(f"Warning: Cannot connect {zone1} et {zone2}"
                   f"(Missing hub on map)")
 
 

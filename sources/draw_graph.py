@@ -23,13 +23,6 @@ class GraphWidget(QWidget):
             map_data (Dict[str, Any]): Parsed map data.
             parent (Any, optional): Parent widget. Defaults to None.
         """
-        """
-        Initializes the GraphWidget.
-
-        Args:
-            map_data (Dict[str, Any]): Parsed map data.
-            parent (Any, optional): Parent widget. Defaults to None.
-        """
         super().__init__(parent)
         self.setMouseTracking(True)
         self.map_data = map_data
@@ -114,13 +107,6 @@ class GraphWidget(QWidget):
             zone_type (str): Type of the component.
             color_val (str): Color to apply.
         """
-        """
-        Updates custom colors for the graph components.
-
-        Args:
-            zone_type (str): Type of the component.
-            color_val (str): Color to apply.
-        """
         self.custom_colors[zone_type] = color_val
 
         if zone_type.lower() == 'background':
@@ -147,9 +133,6 @@ class GraphWidget(QWidget):
         """
         Randomizes all colors in the graph.
         """
-        """
-        Randomizes all colors in the graph.
-        """
         import random
         # List of all valid colors
         all_colors = [c.name for c in Color if c.name != 'TRANSPARENT']
@@ -161,9 +144,6 @@ class GraphWidget(QWidget):
             self.update_custom_color(z, random.choice(all_colors))
 
     def reset_drones(self) -> None:
-        """
-        Resets the drones to their initial positions.
-        """
         """
         Resets the drones to their initial positions.
         """
@@ -209,15 +189,6 @@ class GraphWidget(QWidget):
         Returns:
             list[str]: List of neighbor node IDs.
         """
-        """
-        Retrieves neighbors for a given node.
-
-        Args:
-            node (str): Node ID.
-
-        Returns:
-            list[str]: List of neighbor node IDs.
-        """
         neighbors = []
         for c in self.connections:
             if c['from'] == node:
@@ -252,15 +223,6 @@ class GraphWidget(QWidget):
             menu.update()
 
     def handle_movement_keys(self, keys: set[Qt.Key]) -> bool:
-        """
-        Handles game mode movement keys.
-
-        Args:
-            keys (set[Qt.Key]): Pressed keys.
-
-        Returns:
-            bool: True if moved, False otherwise.
-        """
         """
         Handles game mode movement keys.
 
@@ -321,9 +283,6 @@ class GraphWidget(QWidget):
         """
         Starts the drone movement animation.
         """
-        """
-        Starts the drone movement animation.
-        """
         if self.calculated_paths:
             self.reset_drones()
 
@@ -335,9 +294,6 @@ class GraphWidget(QWidget):
             self.update()
 
     def next_turn(self) -> None:
-        """
-        Advances the simulation to the next turn.
-        """
         """
         Advances the simulation to the next turn.
         """
@@ -493,9 +449,6 @@ class GraphWidget(QWidget):
         self.turn_label.show()
 
     def update_drone_positions(self) -> None:
-        """
-        Updates the graphical positions of the drones for the animation.
-        """
         """
         Updates the graphical positions of the drones for the animation.
         """

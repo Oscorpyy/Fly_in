@@ -36,7 +36,7 @@ class Map3DWidget(QWidget):
         self.rootEntity = QEntity()
         self.view.setRootEntity(self.rootEntity)
 
-        # Configurer le clic (Picking) pour l'Aim Lab
+        # Configure clicking (Picking) for Aim Lab
         renderSettings = self.view.renderSettings()
         if renderSettings is not None:
             pickingSettings = renderSettings.pickingSettings()
@@ -58,20 +58,20 @@ class Map3DWidget(QWidget):
         self.sensitivity = 0.2
         self.mouse_captured = True
 
-        # 1. Ajout d'une lumiere puissante sur la camera
+        # Add a powerful point light on the camera
         self.lightEntity = QEntity(self.camera)
         self.light = QPointLight(self.lightEntity)
         self.light.setColor(QColor("white"))
         self.light.setIntensity(1.5)
         self.lightEntity.addComponent(self.light)
 
-        # Plus de QFirstPersonCameraController, on gère 100% à la main.
+        # Manual camera control (no QFirstPersonCameraController used)
         self.keys_pressed: set[int] = set()
         self.move_timer = QTimer(self)
         self.move_timer.timeout.connect(self.process_movement)
         self.move_timer.start(16)
 
-        # Forcer le focus pour que les touches de deplacement marchent
+        # Enforce focus for movement keys to work properly
         self.container.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.container.setMouseTracking(True)
         self.view.installEventFilter(self)
@@ -125,7 +125,7 @@ class Map3DWidget(QWidget):
         self.target_speed_change_timer = 0.8
         self.spawn_aimlab_target()
 
-        # Affichage du Score et Temps type Valorant
+        # Score and time display board (Valorant style)
         self.board_entity = QEntity(self.rootEntity)
         self.board_mesh = QCuboidMesh()
         self.board_mesh.setXExtent(10.0)
@@ -145,7 +145,7 @@ class Map3DWidget(QWidget):
         self.text_mat.setSpecular(QColor("black"))
         self.text_mat.setShininess(0.0)
 
-        # --- BLOC EXIT sur le mur droit (en face du mur sensibilité) ---
+        # Exit button board on the right wall (opposite to sensitivity wall)
         self.exit_board_entity: QEntity = QEntity(self.rootEntity)
         self.exit_board_mesh: QCuboidMesh = QCuboidMesh()
         self.exit_board_mesh.setXExtent(0.1)
@@ -159,14 +159,14 @@ class Map3DWidget(QWidget):
         self.exit_board_entity.addComponent(self.exit_board_mat)
         self.exit_board_entity.addComponent(self.exit_board_trans)
 
-        # Titre "Exit" au-dessus
+        # Exit title text above the button
         self.exit_title_entity: QEntity = QEntity(self.rootEntity)
         self.exit_title_mesh: QExtrudedTextMesh = QExtrudedTextMesh()
         self.exit_title_mesh.setText("Exit")
         self.exit_title_mesh.setDepth(0.05)
         self.exit_title_mesh.setFont(QFont("Arial", 48))
 
-        # Matériau rouge spécifique pour le texte Exit
+        # Red material specifically for Exit text
         self.exit_title_mat: QPhongMaterial = QPhongMaterial()
         self.exit_title_mat.setDiffuse(QColor("#ff0000"))
         self.exit_title_mat.setAmbient(QColor("#ff0000"))
@@ -179,7 +179,7 @@ class Map3DWidget(QWidget):
         self.exit_title_entity.addComponent(self.exit_title_mat)
         self.exit_title_entity.addComponent(self.exit_title_trans)
 
-        # Bouton EXIT cliquable
+        # Clickable EXIT button
         self.exit_btn_entity: QEntity = QEntity(self.rootEntity)
         self.exit_btn_mesh: QCuboidMesh = QCuboidMesh()
         self.exit_btn_mesh.setXExtent(0.15)
@@ -197,11 +197,11 @@ class Map3DWidget(QWidget):
         self.exit_btn_entity.addComponent(self.exit_btn_trans)
         self.exit_btn_entity.addComponent(self.exit_btn_picker)
 
-        # Affichage de la sentibilité sur le mure du haut
-        # Variables d'état
+        # Sensitivity display on the top wall
+        # State variables
         self.current_sens: float = 0.15
 
-        # --- BLOC CONFIGURATION SENSIBILITÉ ---
+        # Sensitivity configuration block
         self.sens_board_entity: QEntity = QEntity(self.rootEntity)
         self.sens_board_mesh: QCuboidMesh = QCuboidMesh()
         self.sens_board_mesh.setXExtent(0.1)
@@ -222,9 +222,9 @@ class Map3DWidget(QWidget):
         self.sens_title_mesh.setFont(QFont("Arial", 48))
 
         self.sens_title_trans: QTransform = QTransform()
-        # Rotation positive pour orienter le texte vers l'intérieur de la pièce
+        # Positive rotation to orient text towards the room interior
         self.sens_title_trans.setRotationY(90.0)
-        # Ajustement de la position Z de départ pour centrer la chaîne
+        # Adjust Z position to center the text string
         self.sens_title_trans.setTranslation(QVector3D(1.1, 3.3, 11.65))
         self.sens_title_trans.setScale(0.5)
 
@@ -415,9 +415,11 @@ class Map3DWidget(QWidget):
         self.crosshair.addComponent(crosshair_mat)
         self.crosshair.addComponent(crosshair_trans)
 
-    def _on_exit_clicked(self, pickEvent: Any = None) -> None:
+    def _on_exit_clicked(
+            self, pickEvent: Any = None) -> None:
         """
-        Quitte le mode 3D/Aimlab et demande au main de réinitialiser la vue.
+        Exits the 3D/Aim Lab mode and requests the main window
+        to reset the view.
         """
         self.command_emitted.emit('reset')
 

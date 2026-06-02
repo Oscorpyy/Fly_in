@@ -16,3 +16,20 @@ dev = [
 ]
 [tool.mypy]
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["PyQt6", "PyQt6.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "constant",
+    "draw_graph",
+    "main",
+    "map",
+    "menu",
+    "terminal",
+    "sources.*",
+]
+disallow_subclassing_any = false
+warn_return_any = false

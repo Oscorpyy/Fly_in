@@ -22,26 +22,25 @@ class TerminalInput(QLineEdit):
 
         # Command list for autocomplete and help
         self.available_commands: dict[str, str] = {
-            'help': 'Affiche ce message d\'aide avec la liste des commandes',
-            'color help': 'Affiche la liste des zones modifiables avec '
-            'la commande color',
-            'clear': 'Nettoie l\'affichage du terminal',
-            'hide || close': 'Ferme le terminal et retourne à la simulation',
-            'troll': 'Affiche un message amusant',
-            'kill || exit': "Quitte l'application",
-            'show path': "Affiche l'animation des drones sur le chemin",
-            'reset drone': "Réinitialise la position des drones",
-            'reset': "Réinitialise la position des drones + les couleurs",
-            'reset all': "Reset complet et retour au projet de base",
-            'game': "Active le mode de jeu manuel avec le joueur",
-            'map={folder}_{numero}': "Charge une nouvelle map "
-            "(ex: map=challenger_01)",
-            'color {zone} {color}': "Modifie la couleur d'une zone"
-            "(ex: color hub red)",
-            'random color': "Modifie aléatoirement toutes les "
-            "couleurs du labyrinthe",
-            'random color auto [sec]': "Modifie les couleurs "
-            "aléatoirement (ex: random color auto 5)"
+            'help': 'Display help message with list of available commands',
+            'color help': 'Display list of zones that can be modified with '
+            'the color command',
+            'clear': 'Clear terminal display',
+            'hide || close': 'Close the terminal and return to simulation',
+            'troll': 'Display a funny message',
+            'kill || exit': 'Quit the application',
+            'show path': 'Display drone animation along the path',
+            'reset drone': 'Reset drone position',
+            'reset': 'Reset drone position and colors',
+            'reset all': 'Full reset and return to base project',
+            'game': 'Activate manual game mode with player',
+            'map={folder}_{numero}': 'Load a new map '
+            '(ex: map=challenger_01)',
+            'color {zone} {color}': 'Modify the color of a zone '
+            '(ex: color hub red)',
+            'random color': 'Randomly modify all maze colors',
+            'random color auto [sec]': 'Continuously modify colors '
+            'at set intervals (ex: random color auto 5)'
         }
         self.tab_index: int = 0
         self.tab_matches: list[str] = []
@@ -51,16 +50,14 @@ class TerminalInput(QLineEdit):
     def event(self, event: Any) -> bool:
         """
         Handles specific events, such as filtering Tab key presses.
+        Overrides event to capture Tab key before Qt's native focus system
+        processes it.
 
         Args:
             event (Any): The event to handle.
 
         Returns:
             bool: True if event was handled, False otherwise.
-        """
-        """
-        Surcharger event pour capter la touche TAB avant qu'elle
-        ne soit mangée par le système de focus natif de PyQt.
         """
         if event.type() == event.Type.KeyPress and \
                 event.key() == Qt.Key.Key_Tab:
@@ -218,11 +215,11 @@ class TerminalInput(QLineEdit):
     def keyPressEvent(self, event: Any) -> None:
         """
         Handles key press events (Up/Down for history, etc.).
+        Intercepts arrow keys before they move the cursor.
 
         Args:
             event (Any): The key press event.
         """
-        """Intercepte les flèches avant qu'elles ne bougent le curseur."""
         # --- GESTION DES FLÈCHES (Historique) ---
         if event.key() == Qt.Key.Key_Up:
             self.navigate_history(-1)
@@ -242,22 +239,21 @@ class TerminalInput(QLineEdit):
     def navigate_history(self, direction: int) -> None:
         """
         Navigates through the command history.
+        Direction: -1 for up (previous commands), 1 for down (newer commands).
 
         Args:
             direction (int): Direction (-1 for up, 1 for down).
         """
-        """Navigue dans l'historique vers le haut (-1) ou vers le bas (+1)."""
         if not self.history:
             return
 
-        # Si on était tout en bas (train de taper) et
-        # qu'on monte, on sauvegarde le brouillon
+        # If at bottom (currently typing) and going up, save the draft
         if self.history_index == len(self.history) and direction == -1:
             self.current_buffer = self.text()
 
         new_index = self.history_index + direction
 
-        # Bloquer les limites
+        # Clamp to valid range
         if new_index < 0:
             new_index = 0
         elif new_index > len(self.history):
@@ -265,7 +261,7 @@ class TerminalInput(QLineEdit):
 
         self.history_index = new_index
 
-        # If we go back to the bottom, restore the buffer
+        # If we go back to the bottom, restore the draft buffer
         if self.history_index == len(self.history):
             self.setText(self.current_buffer)
         else:
@@ -345,7 +341,6 @@ class Terminal(QWidget):
             matches (list[str]): The list of matched commands.
             index (int): The current highlighted index.
         """
-        """Met à jour l'affichage de l'autocomplétion."""
         if not matches:
             self.autocomplete_label.setVisible(False)
             return
@@ -461,7 +456,6 @@ class Terminal(QWidget):
         """
         Toggles the terminal visibility.
         """
-        """Affiche ou masque le terminal (comme sur Minecraft)."""
         if self.isVisible():
             self.hide()
             # Rend le focus à la fenêtre principale
@@ -478,8 +472,6 @@ class Terminal(QWidget):
         """
         Resizes the terminal widget to match its parent container.
         """
-        """Ajuste la taille du terminal pour
-        qu'il prenne le bas de la fenêtre."""
         parent = self.parentWidget()
         if parent is not None:
             parent_rect = parent.rect()
@@ -491,7 +483,6 @@ class Terminal(QWidget):
         """
         Processes the command currently entered in the input field.
         """
-        """Appelée quand l'utilisateur fait 'Entrée'."""
         command = self.input_area.text().strip()
         if command:
             # Ajoute le texte validé à l'historique de l'input custom
@@ -509,7 +500,6 @@ class Terminal(QWidget):
         Args:
             command (str): The command to execute.
         """
-        """Un mini-interpréteur de commande, facile à étendre."""
         cmd_lower = command.lower()
 
         if cmd_lower in ('quit', 'q'):
@@ -637,7 +627,6 @@ class Terminal(QWidget):
         Args:
             text (str): The text to print.
         """
-        """Pratique pour écrire des logs de l'extérieur vers ce terminal."""
         self.output_area.append(text)
         # Force la barre de défilement tout en bas
         scrollbar = self.output_area.verticalScrollBar()
@@ -651,7 +640,6 @@ class Terminal(QWidget):
         Args:
             event (Any): The key press event.
         """
-        """Détecte l'appui de touches lorsque le terminal a le focus."""
         if event.key() == Qt.Key.Key_Escape:
             self.toggle_visibility()
         else:
@@ -670,7 +658,6 @@ class Terminal(QWidget):
         """
         from PyQt6.QtCore import QEvent, Qt
         if self.isVisible():
-            # 1. Masquer si clic à l'extérieur
             if event.type() == QEvent.Type.MouseButtonPress:
                 if hasattr(event, 'globalPosition'):
                     local_pos = self.mapFromGlobal(
