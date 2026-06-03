@@ -365,17 +365,16 @@ class MenuWidget(QWidget):
 
                 occ_str = f"{current_occ} / {max_cap}"
 
-                info_text = f"⚙️ Informations du Hub : {self.hovered_node}\n"
+                info_text = f"⚙️ Hub Information : {self.hovered_node}\n"
                 info_text += "-" * 40 + "\n"
                 info_text += f"Type : {node_data.get('type', 'Inconnu')}\n"
-                info_text += f"Places prises : {occ_str}\n"
-                info_text += f"Coordonnées : X = {node_data.get('x')} | "
+                info_text += f"Places taken : {occ_str}\n"
+                info_text += f"Coordinates : X = {node_data.get('x')} | "
                 info_text += f"Y = {node_data.get('y')}\n"
 
                 for key, val in node_data.get('attributes', {}).items():
                     info_text += f"↳ {key.capitalize()} : {val}\n"
 
-                # Recherche des connexions (voisins)
                 neighbors = []
                 for c in self.map_data.get('connections', []):
                     if c['from'] == self.hovered_node:
@@ -383,14 +382,12 @@ class MenuWidget(QWidget):
                     elif c['to'] == self.hovered_node:
                         neighbors.append(c['from'])
                 if neighbors:
-                    info_text += f"\n🔗 Liens : {', '.join(neighbors)}\n"
+                    info_text += f"\n🔗 Links : {', '.join(neighbors)}\n"
 
-                # Pour les données, une police type 'code/terminal' rend bien
                 info_font = QFont("Consolas", 12)
                 painter.setFont(info_font)
                 painter.setPen(text_color)
 
-                # On dessine le texte au centre de la zone DROITE
                 painter.drawText(right_rect, Qt.AlignmentFlag.AlignCenter,
                                  info_text)
 

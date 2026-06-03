@@ -15,20 +15,16 @@ def get_map_path_from_arg(arg: str) -> str:
     Returns:
         str: The resolved absolute file path, or an empty string if not found.
     """
-    # 1. Vérifie si le fichier existe directement
     if os.path.isfile(arg):
         return os.path.abspath(arg)
 
-    # 2. Cas du format 'dossier_numero' (ex: challenger_01)
     if "_" in arg:
         parts = arg.split("_", 1)
         folder = parts[0]
         numero = parts[1]
 
-        # Racine du projet (2 niveaux au-dessus de 'sources/parsing.py')
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        # Pattern de recherche: Fly_in/maps/{folder}/{numero}_*.txt
         search_pattern = os.path.join(base_dir, "maps", folder,
                                       f"{numero}_*.txt")
         try:

@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from PyQt6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
 from PyQt6.QtCore import QtMsgType, QMessageLogContext
+from constant import Colors
 from parsing import get_args
 from parsing_text import parse_map_text
 from output import print_simulation_output
@@ -566,7 +567,7 @@ def main() -> None:
     except Exception as e:
         print(f"Unhandled exception occurred during execution: {e}")
         exit_code = 1
-    print("Closing graphical interface.")
+    print(f"{Colors.RED}Closing graphical interface.{Colors.RESET}")
     sys.exit(exit_code)
 
 

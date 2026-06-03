@@ -1,0 +1,10 @@
+# Theme: inline comment after a hub line should invalidate parsing
+
+nb_drones: 2
+
+start_hub: start 0 0 [color=green] # starting point
+hub: waypoint1 1 0 [color=blue]
+end_hub: g#al 2 0 [color=red]
+
+connection: start-waypoint1
+connection: waypoint1-g#al

@@ -1,0 +1,10 @@
+# Theme: connection is missing a source or destination hub
+
+nb_drones: 2
+
+start_hub: start 0 0 [color=green]
+hub: waypoint1 1 0 [color=blue]
+end_hub: goal 2 0 [color=red]
+
+connection: -goal
+connection: start-waypoint1

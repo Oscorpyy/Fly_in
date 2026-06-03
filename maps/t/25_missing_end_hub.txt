@@ -1,0 +1,8 @@
+# Theme: missing end_hub line in map definition
+
+nb_drones: 2
+
+start_hub: start 0 0 [color=green]
+hub: waypoint1 1 0 [color=blue]
+
+connection: start-waypoint1
