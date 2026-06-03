@@ -2,6 +2,7 @@ import os
 import re
 import sys
 from typing import Dict, Any, Set, Tuple
+from constant import Colors
 
 
 # Allowed keys inside hub/start_hub/end_hub brackets
@@ -19,7 +20,7 @@ HUB_NAME_PATTERN = re.compile(r'^[A-Za-z0-9_]+$')
 
 def _error(line_num: int, msg: str) -> None:
     """Print a formatted error message and exit."""
-    print(f"Error: Line {line_num}: {msg}")
+    print(f"{Colors.RED}Error: Line {line_num}: {msg}{Colors.RESET}")
     sys.exit(1)
 
 
@@ -137,18 +138,12 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                 if not line or line.startswith('#'):
                     continue
 
-                # ── Inline comment detection ─────────────────────────────
-                # A '#' appearing after real content on the same line is
-                # forbidden (it would silently truncate the directive).
                 if '#' in line:
                     _error(line_num,
                            "Inline comments are not allowed. "
                            "Move the '#' comment to its own line.")
 
                 try:
-                    # ────────────────────────────────────────────────────
-                    # 1. nb_drones
-                    # ────────────────────────────────────────────────────
                     if line.startswith('nb_drones:'):
                         nb_drones_count += 1
                         if nb_drones_count > 1:
@@ -168,9 +163,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                                    "nb_drones must be a positive integer.")
                         map_data['nb_drones'] = nb_drones_val
 
-                    # ────────────────────────────────────────────────────
-                    # 2. Hubs
-                    # ────────────────────────────────────────────────────
                     elif line.startswith(('hub:', 'start_hub:', 'end_hub:')):
                         hub_type = line.split(':')[0].strip()
                         rest_of_line = line.split(':', 1)[1].strip()
@@ -186,7 +178,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                         elif hub_type == 'end_hub':
                             end_hub_count += 1
 
-                        # ── Extract bracket block ─────────────────────
                         attributes: Dict[str, Any] = {}
                         attr_match = re.search(r'\[([^\[\]]*)\]', rest_of_line)
 
@@ -197,17 +188,11 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                             after_bracket = rest_of_line[attr_match.end(
                                 ):].strip()
 
-                            # ── Text after closing bracket is forbidden ───
                             if after_bracket:
                                 _error(line_num,
                                        f"Unexpected text after closing ']': "
                                        f"'{after_bracket}'.")
 
-                            # ── Empty brackets are forbidden ──────────────
-                            # (e.g. [max_link_capacity] with no value)
-                            # This is caught inside _parse_attributes when
-                            # a token has no '=', but we also guard an
-                            # entirely empty block:
                             if not attr_str:
                                 _error(line_num,
                                        "Empty brackets '[]' are not allowed.")
@@ -220,10 +205,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                             rest_of_line = before_bracket
 
                         else:
-                            # No brackets — make sure the user did not write
-                            # bare "key=value" options outside brackets.
-                            # Heuristic: if any token after the name+coords
-                            # contains '=', it looks like a forgotten bracket.
                             tokens_check = rest_of_line.split()
                             if len(tokens_check) > 3:
                                 for tok in tokens_check[3:]:
@@ -234,15 +215,12 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                                             "in brackets, e.g. [key=value]."
                                         )
 
-                        # ── Parse name and coordinates ────────────────
                         parts = rest_of_line.split()
                         if len(parts) < 3:
                             _error(line_num,
                                    f"'{hub_type}' must have name and two "
                                    "integer coordinates.")
 
-                        # Extra tokens between name+coords and the bracket
-                        # (or end of line) are invalid.
                         if len(parts) > 3:
                             extra = ' '.join(parts[3:])
                             _error(line_num,
@@ -251,10 +229,8 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
 
                         name = parts[0]
 
-                        # ── Hub name validation ───────────────────────
                         _validate_hub_name(name, line_num)
 
-                        # Duplicate hub check
                         if name in seen_hubs:
                             _error(line_num,
                                    f"Hub '{name}' is already defined.")
@@ -266,7 +242,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                             _error(line_num,
                                    "Coordinates must be integers.")
 
-                        # ── Duplicate coordinates check ───────────────
                         if (x, y) in seen_coords:
                             _error(line_num,
                                    f"Coordinates ({x}, {y}) are already used "
@@ -283,9 +258,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                             'attributes': attributes
                         }
 
-                    # ────────────────────────────────────────────────────
-                    # 3. Connections
-                    # ────────────────────────────────────────────────────
                     elif line.startswith('connection:'):
                         rest_of_line = line.split(':', 1)[1].strip()
 
@@ -364,9 +336,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                             'attributes': attributes
                         })
 
-                    # ────────────────────────────────────────────────────
-                    # Unknown directive
-                    # ────────────────────────────────────────────────────
                     else:
                         print(f"Warning: Line {line_num}: "
                               f"Unknown directive -> '{line}'")
@@ -378,7 +347,6 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                           f"Malformed line -> '{line}' ({e})")
                     sys.exit(1)
 
-        # ── Final cross-line validation ───────────────────────────────────
         if nb_drones_count == 0:
             print("Error: nb_drones not defined.")
             sys.exit(1)

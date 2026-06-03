@@ -6,12 +6,14 @@ class Zone:
     Represents a hub or zone on the map.
     """
     def __init__(self, name: str, z_type: str = "normal", capacity: int = 1):
+        """Initializes a new Zone."""
         self.name: str = name
         self.z_type: str = z_type
         self.capacity: int = capacity
         self.weight: float = self._calculate_weight()
 
     def _calculate_weight(self) -> float:
+        """Calculates the weight of the zone based on its type."""
         if self.z_type == "restricted":
             return 2.0
         elif self.z_type == "priority":
@@ -26,6 +28,7 @@ class Graph:
     Represents the drone network map as a graph.
     """
     def __init__(self) -> None:
+        """Initializes a new Graph."""
         self.zones: Dict[str, Zone] = {}
         self.edges: Dict[str, List[str]] = {}
 
@@ -61,6 +64,7 @@ class PathFinder:
     Handles pathfinding logic to route drones through the graph.
     """
     def __init__(self, graph: Graph):
+        """Initializes a new PathFinder."""
         self.graph: Graph = graph
 
     def find_all_paths(self, start: str, end: str) -> List[List[str]]:

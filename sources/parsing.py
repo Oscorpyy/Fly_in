@@ -2,6 +2,7 @@ import sys
 import os
 import glob
 from typing import Dict, Any
+from constant import Colors
 
 
 def get_map_path_from_arg(arg: str) -> str:
@@ -45,16 +46,17 @@ def get_args() -> Dict[str, Any]:
         Dict[str, Any]: A dictionary containing the resolved 'map_path'.
     """
     if len(sys.argv) != 2:
-        print("Error: Invalid number of arguments.")
-        print("Usage: python main.py <path_to_map.txt> OR "
-              "<folder>_<number> (ex: challenger_01)")
+        print(f"{Colors.RED}Error: Invalid number of arguments.{Colors.RESET}")
+        print(f"{Colors.RED}Usage: python main.py <path_to_map.txt> OR "
+              f"<folder>_<number> (ex: challenger_01){Colors.RESET}")
         sys.exit(1)
 
     input_arg = sys.argv[1]
     resolved_path = get_map_path_from_arg(input_arg)
 
     if not resolved_path or not os.path.exists(resolved_path):
-        print(f"Error: Unable to find map for argument '{input_arg}'.")
+        print(f"{Colors.RED}Error: Unable to find map for argument "
+              f"'{input_arg}'.{Colors.RESET}")
         sys.exit(1)
 
     args_dict: Dict[str, Any] = {
@@ -62,7 +64,8 @@ def get_args() -> Dict[str, Any]:
     }
 
     if not args_dict.get('map_path'):
-        print("Error: Dictionary does not contain 'map_path'.")
+        print(f"{Colors.RED}Error: Dictionary does not contain 'map_path'"
+              f".{Colors.RESET}")
         sys.exit(1)
 
     return args_dict

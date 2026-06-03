@@ -8,6 +8,7 @@ from typing import Any
 
 
 class Colors:
+    """ANSI escape codes for terminal colors."""
     RED = "\033[31m"
     GREEN = "\033[32m"
     YELLOW = "\033[33m"

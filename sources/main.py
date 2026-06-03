@@ -157,8 +157,7 @@ class DroneSimulationWindow(QMainWindow):
                     pass
 
             if not self.graph_view.calculated_paths:
-                error_msg = "❌ Erreur : Impossible d'afficher le chemin." \
-                    "Aucun chemin n'a été trouvé !"
+                error_msg = f"{Colors.RED} Error : No path found."
                 print(error_msg)
                 self.terminal_view.print_line(error_msg)
             else:
@@ -214,6 +213,14 @@ class DroneSimulationWindow(QMainWindow):
             if central is not None:
                 central.setStyleSheet("")
             self.setStyleSheet("")
+
+        elif cmd == 'update':
+            if hasattr(self.graph_view, 'update'):
+                self.graph_view.update()
+            if hasattr(self.menu_view, 'update'):
+                self.menu_view.update()
+            if hasattr(self.terminal_view, 'update'):
+                self.terminal_view.update()
 
         elif cmd == 'random color':
             if hasattr(self, 'random_auto_timer'
@@ -272,8 +279,7 @@ class DroneSimulationWindow(QMainWindow):
         if not resolved_path or not __import__('os').path.exists(
                 resolved_path):
             if hasattr(self, 'terminal_view'):
-                self.terminal_view.print_line(f"❌ Erreur: Impossible de "
-                                              f"trouver la carte {map_name}.")
+                self.terminal_view.print_line(f"Error: {map_name} not found.")
             return
 
         if hasattr(self, 'terminal_view'):
@@ -322,15 +328,15 @@ class DroneSimulationWindow(QMainWindow):
                 new_map_data['calculated_paths'] = drone_paths
                 print_simulation_output(drone_paths, new_map_data)
             else:
-                error_msg = "❌ Erreur : Impossible d'atteindre le"
-                f"target hub from {start_hubs[0]} to"
-                f"{end_hubs[0]} !"
+                error_msg = "Error : Unable to reach the "
+                error_msg += f"target hub from {start_hubs[0]} to "
+                error_msg += f"{end_hubs[0]} !"
                 print(error_msg)
                 if hasattr(self, 'terminal_view'):
                     self.terminal_view.print_line(error_msg)
                     self.terminal_view.show()
         else:
-            error_msg = "❌ Erreur : Hub de départ ou d'arrivée manquant !"
+            error_msg = "Error : Start or end hub missing !"
             print(error_msg)
             if hasattr(self, 'terminal_view'):
                 self.terminal_view.print_line(error_msg)
@@ -495,7 +501,6 @@ def main() -> None:
         )
 
     # Remove the following Qt3D info log:
-    # "Qt3D.Renderer.RHI.Backend: Initializing RHI with OpenGL backend"
     QLoggingCategory.setFilterRules(
         "Qt3D.Renderer.RHI.Backend=false\n"
         "Qt3D.Renderer.RHI.Backend.info=false"
@@ -505,10 +510,8 @@ def main() -> None:
     # Load and parse the data
     args = get_args()
     map_data = parse_map_text(args['map_path'])
-    # --- PATHFINDING INITIALIZATION ---
     graph = Graph()
 
-    # 1. Add zones (hubs)
     for name, hub_data in map_data.get('hubs', {}).items():
         z_type = "normal"
         attributes = hub_data.get('attributes', {})
@@ -524,14 +527,11 @@ def main() -> None:
         capacity = attributes.get('capacity', 1)
         graph.add_zone(Zone(name=name, z_type=z_type, capacity=capacity))
 
-    # 2. Add connections
     for conn in map_data.get('connections', []):
         graph.add_connection(conn['from'], conn['to'])
 
-    # 3. Run the path search
     pf = PathFinder(graph)
 
-    # Find the start and end hubs
     start_hubs = [name for name,
                   d in map_data['hubs'].items()
                   if d['type'] == 'start_hub']
@@ -539,11 +539,9 @@ def main() -> None:
                 d in map_data['hubs'].items()
                 if d['type'] == 'end_hub']
 
-    # If both start and end hubs exist, solve the map
     if start_hubs and end_hubs:
         shortest_path = pf.find_shortest_path(start_hubs[0], end_hubs[0])
 
-        # If a path was found, dispatch the drones
         if shortest_path:
             nb_drones = int(map_data.get('nb_drones', 1))
             drone_paths = pf.dispatch_drones(start_hubs[0], end_hubs[0],
@@ -552,16 +550,15 @@ def main() -> None:
             map_data['calculated_paths'] = drone_paths
             print_simulation_output(drone_paths, map_data)
         else:
-            print("❌ Aucun chemin possible !")
+            print(f"{Colors.RED}Path not found!{Colors.RESET}")
     else:
-        print("⚠️ Hub de départ ou d'arrivée manquant !")
+        print(f"{Colors.YELLOW}Start or end hub missing!{Colors.RESET}")
 
     app: QApplication = QApplication(sys.argv)
 
     window: DroneSimulationWindow = DroneSimulationWindow(map_data)
     window.show()
 
-    # 3. Safe execution loop launch
     try:
         exit_code = app.exec()
     except Exception as e:

@@ -485,7 +485,9 @@ class MenuWidget(QWidget):
         self.update()
 
     def notify_drone_on_hub(self, hub_name: str, count: int) -> None:
-        """Signale qu'un drone est sur ce hub ; maintient l'affichage X ms."""
+        """Notifies the menu that a drone is currently on a hub, allowing it to
+        display this information for a short time even after the drone has
+        moved away (to account for movement progress"""
         self._persistent_occ[hub_name] = count
 
         # Recrée le timer pour ce hub (reset le délai à chaque passage)
@@ -501,5 +503,6 @@ class MenuWidget(QWidget):
         self.update()
 
     def _clear_hub(self, hub_name: str) -> None:
+        """Clears the persistent occupancy for a hub after the timer expires"""
         self._persistent_occ.pop(hub_name, None)
         self.update()

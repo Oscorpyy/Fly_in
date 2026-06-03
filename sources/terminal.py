@@ -1,3 +1,4 @@
+from time import sleep
 from typing import Any
 import os
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
@@ -15,6 +16,7 @@ class TerminalInput(QLineEdit):
     autocomplete_updated = pyqtSignal(list, int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
+        """Initializes a new TerminalInput."""
         super().__init__(parent)
         self.history: list[str] = []
         self.history_index: int = -1
@@ -114,9 +116,7 @@ class TerminalInput(QLineEdit):
 
         if self.tab_matches:
             self.autocomplete_updated.emit(self.tab_matches, self.tab_index)
-            # On remplace le texte par le match actuel
             self.setText(self.tab_matches[self.tab_index])
-            # On déplace l'index pour le prochain coup de Tab (boucle)
             self.tab_index = (self.tab_index + 1) % len(self.tab_matches)
 
     def _build_map_matches(self, current_text: str) -> list[str]:
@@ -220,14 +220,11 @@ class TerminalInput(QLineEdit):
         Args:
             event (Any): The key press event.
         """
-        # --- GESTION DES FLÈCHES (Historique) ---
         if event.key() == Qt.Key.Key_Up:
             self.navigate_history(-1)
         elif event.key() == Qt.Key.Key_Down:
             self.navigate_history(1)
         else:
-            # Réinitialise le buffer d'historique et de tab si l'utilisateur
-            # tape autre chose qu'une flèche de navigation
             if event.key() not in (Qt.Key.Key_Left, Qt.Key.Key_Right,
                                    Qt.Key.Key_Shift, Qt.Key.Key_Control):
                 self.history_index = len(self.history)
@@ -292,17 +289,14 @@ class Terminal(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
 
-        # Zone d'historique (Lecture seule)
         self.output_area = QTextEdit()
         self.output_area.setReadOnly(True)
-        # Style type hacker
         self.output_area.setStyleSheet("color: #FFFFFF; background-color:"
                                        "transparent; border: none;"
                                        "font-family: Consolas, monospace;"
                                        "font-size: 14px;")
         layout.addWidget(self.output_area)
 
-        # Autocomplétion
         self.autocomplete_label = QLabel()
         self.autocomplete_label.setStyleSheet(
             "color: #FFFFFF; font-family: Consolas, monospace; "
@@ -312,7 +306,6 @@ class Terminal(QWidget):
         self.autocomplete_label.setVisible(False)
         layout.addWidget(self.autocomplete_label)
 
-        # Ligne de commande (Input) customisée pour avoir l'historique
         self.input_area = TerminalInput()
         self.input_area.autocomplete_updated.connect(self.update_autocomplete)
         self.input_area.setStyleSheet("color: #FFFFFF;"
@@ -322,16 +315,14 @@ class Terminal(QWidget):
                                       "font-size: 14px; padding: 5px;")
         self.input_area.setPlaceholderText("Tape une commande"
                                            "(Échap pour fermer)...")
-        # Quand on tape "Entrée" :
         self.input_area.returnPressed.connect(self.process_command)
         layout.addWidget(self.input_area)
 
-        # Rendre le dictionnaire accessible au Terminal pour la commande 'help'
         self.available_commands = self.input_area.available_commands
 
-        self.print_line("Terminal initialisé."
-                        "Appuie sur 'Échap' pour masquer."
-                        "Tape 'help' pour l'aide.")
+        self.print_line("Version 1.42.0 - Fly-In Command Terminal"
+                        " Press 'Esc' to hide."
+                        " Type 'help' for help.")
 
     def update_autocomplete(self, matches: list[str], index: int) -> None:
         """
@@ -458,7 +449,6 @@ class Terminal(QWidget):
         """
         if self.isVisible():
             self.hide()
-            # Rend le focus à la fenêtre principale
             parent = self.parentWidget()
             if parent is not None:
                 parent.setFocus()
@@ -485,12 +475,10 @@ class Terminal(QWidget):
         """
         command = self.input_area.text().strip()
         if command:
-            # Ajoute le texte validé à l'historique de l'input custom
             self.input_area.add_to_history(command)
 
             self.print_line(f"> {command}")
             self.execute_command(command)
-        # On garde le focus mais on vide la ligne
         self.input_area.clear()
 
     def execute_command(self, command: str) -> None:
@@ -507,16 +495,16 @@ class Terminal(QWidget):
 
         elif cmd_lower in ('clear', 'c'):
             self.output_area.clear()
-            self.print_line("Console nettoyée.")
+            self.print_line("Terminal clear.")
 
         elif cmd_lower in ('help', 'h'):
-            self.print_line("--- COMMANDES DISPONIBLES ---")
+            self.print_line("--- COMMANDS AVAILABLE ---")
             for cmd_name, cmd_desc in self.available_commands.items():
                 self.print_line(f" - {cmd_name.ljust(23)} : {cmd_desc}")
             self.print_line("-" * 90)
 
         elif cmd_lower in ('color help', 'ch'):
-            self.print_line("--- LISTE DES ZONES MODIFIABLES AVEC COLOR_ ---")
+            self.print_line("--- LIST OF ZONES ---")
             zones = ["start", "end", "hub", "priority", "restricted",
                      "blocked", "connection", "drone", "background", "menu",
                      "menu_bg", "terminal_bg", "terminal_text", "turn_text",
@@ -528,7 +516,20 @@ class Terminal(QWidget):
             self.print_line("-" * 47)
 
         elif cmd_lower in ('troll', 't'):
-            self.print_line("Encore un troll ? Non, retourne coder !")
+            self.print_line("Do search for the meaning of life, the universe "
+                            "and everything... ")
+            self.command_emitted.emit('update')
+
+            self.repaint()
+            QApplication.processEvents()
+
+            sleep(42)
+
+            try:
+                sys.exit(0)
+            except SystemExit:
+                print("Closing the graphical interface.")
+                raise
 
         elif cmd_lower.startswith(('map=', 'map ', 'm=', 'm ')):
             clean_cmd = cmd_lower.replace('=', ' ')
@@ -542,54 +543,52 @@ class Terminal(QWidget):
                                 "Usage : map=Challenger_01")
 
         elif cmd_lower.startswith(('color ', 'color_', 'c ', 'c_')):
-            # Accepter à la fois "color zone name" et "color_zone=name"
             clean_cmd = cmd_lower.replace('_', ' ').replace('=', ' ')
             parts = clean_cmd.split()
             if len(parts) >= 3:
                 zone_type = parts[1]
                 color_name = parts[2]
 
-                # Check if color exists
                 from constant import Color
                 valid_colors = [
                     c.name.lower() for c in Color if c.name != 'TRANSPARENT']
 
                 if color_name.lower() not in valid_colors and color_name.lower(
                 ) != "rainbow":
-                    self.print_line(f"❌ Erreur : La couleur "
-                                    f"'{color_name}' n'est pas reconnue.")
-                    self.print_line(f"Couleurs disponibles : rainbow, "
+                    self.print_line(f"Error : color "
+                                    f"'{color_name}' is not valid.")
+                    self.print_line(f"Valid colors : rainbow, "
                                     f"{', '.join(valid_colors)}")
                 else:
-                    self.print_line(f"Changement de la couleur de "
+                    self.print_line(f"Applying color change: "
                                     f"'{zone_type}' en '{color_name}'.")
                     self.command_emitted.emit(f'color {zone_type} '
                                               f'{color_name}')
             else:
-                self.print_line("Erreur. Usage : color hub red")
+                self.print_line("Error. Usage : color hub red")
 
         elif cmd_lower in ('show path', 'show_path', 'sp'):
-            self.print_line("Lancement de l'animation des drones...")
+            self.print_line("Launching drone animation...")
             self.command_emitted.emit('show path')
             self.toggle_visibility()
 
         elif cmd_lower in ('reset drone', 'reset_drone', 'rd'):
-            self.print_line("Réinitialisation des positions des drones...")
+            self.print_line("Resetting drone positions...")
             self.command_emitted.emit('reset drone')
             self.toggle_visibility()
 
         elif cmd_lower in ('reset', 'r'):
-            self.print_line("Réinitialisation totale...")
+            self.print_line("Resetting all...")
             self.command_emitted.emit('reset')
             self.toggle_visibility()
 
         elif cmd_lower in ('game', 'g'):
-            self.print_line("Activation du mode jeu...")
+            self.print_line("Activating game mode...")
             self.command_emitted.emit('game')
             self.toggle_visibility()
 
         elif cmd_lower in ('random color', 'random_color', 'rc'):
-            self.print_line("Changement aléatoire des couleurs du "
+            self.print_line("Randomly changing the colors of the "
                             "labyrinthe...")
             self.command_emitted.emit('random color')
 
@@ -598,20 +597,19 @@ class Terminal(QWidget):
             clean_cmd = cmd_lower.replace('=', ' ')
             parts = clean_cmd.split()
             delay = 10
-            # Si un argument a été passé (ex: rca 5), on le récupère
             if len(parts) > 1 and parts[-1].isdigit():
                 delay = int(parts[-1])
 
             self.command_emitted.emit(f'random color auto {delay}')
-            self.print_line(f"Changement aléatoire des couleurs du "
-                            f"labyrinthe toutes les {delay} secondes...")
+            self.print_line(f"Randomly changing the colors of the "
+                            f"labyrinthe every {delay} seconds...")
             self.toggle_visibility()
 
         elif cmd_lower in ('kill', 'exit', 'k', 'e'):
             try:
                 sys.exit(0)
             except SystemExit:
-                print("Fermeture de l'interface graphique.")
+                print("Closing the graphical interface.")
                 raise
 
         elif cmd_lower in ('close', 'hide', 'cl', 'hi'):
@@ -628,7 +626,6 @@ class Terminal(QWidget):
             text (str): The text to print.
         """
         self.output_area.append(text)
-        # Force la barre de défilement tout en bas
         scrollbar = self.output_area.verticalScrollBar()
         if scrollbar is not None:
             scrollbar.setValue(scrollbar.maximum())

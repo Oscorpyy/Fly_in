@@ -19,6 +19,8 @@ class Map3DWidget(QWidget):
 
     def __init__(self, map_data: dict[str, Any] | None = None,
                  parent: QWidget | None = None) -> None:
+        """Initializes the 3D map widget, sets up the 3D view,
+        camera, lighting,"""
         super().__init__(parent)
         self.map_data = map_data
 
@@ -108,7 +110,7 @@ class Map3DWidget(QWidget):
 
         self.score = 0
         self.best_score = 0
-        self.time_left = 30  # 30 secondes pour le mode Aim Lab
+        self.time_left = 30
         self.game_started = False
         self.target: QEntity | None = None
         self.target_transform: QTransform | None = None
@@ -375,11 +377,11 @@ class Map3DWidget(QWidget):
         self.best_val_entity.addComponent(self.best_val_trans)
         self.best_val_entity.setEnabled(False)
 
-        # Start "Lancer le aimlab" text
+        # Start "Start the aimlab" text
         self.start_text_entity = QEntity(self.board_entity)
         self.start_text_mesh = QExtrudedTextMesh()
         self.start_text_mesh.setFont(QFont("monospace", 15, QFont.Weight.Bold))
-        self.start_text_mesh.setText("LANCER LE AIMLAB")
+        self.start_text_mesh.setText("START THE AIMLAB")
         self.start_text_mesh.setDepth(0.01)
         self.start_text_mat = QPhongMaterial()
         self.start_text_mat.setDiffuse(QColor("white"))
@@ -391,11 +393,11 @@ class Map3DWidget(QWidget):
         self.start_text_entity.addComponent(self.start_text_mat)
         self.start_text_entity.addComponent(self.start_text_trans)
 
-        # Lancement du compteur de temps
+        # Lunch timer for Aim Lab mode
         self.game_timer = QTimer(self)
         self.game_timer.timeout.connect(self.update_game_timer)
 
-        # Crosshair en 3D (attaché à la caméra)
+        # Crosshair in 3D (attached to the camera)
         self.crosshair = QEntity(self.camera)
         crosshair_mesh = QCuboidMesh()
         crosshair_mesh.setXExtent(0.005)
@@ -424,6 +426,8 @@ class Map3DWidget(QWidget):
         self.command_emitted.emit('reset')
 
     def showEvent(self, event: Any) -> None:
+        """Overrides the default showEvent to capture the mouse
+        and hide the cursor"""
         super().showEvent(event)
         self.container.setFocus()
         self.container.setCursor(Qt.CursorShape.BlankCursor)
@@ -431,15 +435,21 @@ class Map3DWidget(QWidget):
         QApplication.setOverrideCursor(Qt.CursorShape.BlankCursor)
 
     def hideEvent(self, event: Any) -> None:
+        """Overrides the default hideEvent to release the mouse and
+        restore the cursor"""
         super().hideEvent(event)
         QApplication.restoreOverrideCursor()
         self.container.setCursor(Qt.CursorShape.ArrowCursor)
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def resizeEvent(self, event: Any) -> None:
+        """Overrides the default resizeEvent to adjust the camera aspect ratio
+        and ensure the 3D view fits the new window size."""
         super().resizeEvent(event)
 
     def build_map(self) -> None:
+        """Builds the 3D map based on the world_map layout, creating walls and
+         spawn points. Also sets up the floor and basic lighting for the"""
         wall_mesh = QCuboidMesh()
         wall_mesh.setXExtent(1.0)
         wall_mesh.setYExtent(2.0)
@@ -462,7 +472,7 @@ class Map3DWidget(QWidget):
                     ent.addComponent(trans)
                     self.entities.append(ent)
 
-        # Sol
+        # Floor
         floor = QEntity(self.rootEntity)
         floor_mesh = QCuboidMesh()
         floor_mesh.setXExtent(100.0)
@@ -478,6 +488,8 @@ class Map3DWidget(QWidget):
         self.entities.append(floor)
 
     def spawn_aimlab_target(self) -> None:
+        """Spawns the target for the Aim Lab mode, which is a magenta cube that
+        moves randomly on the back wall"""
         self.target = QEntity(self.rootEntity)
         mesh = QCuboidMesh()
         mesh.setXExtent(0.5)
@@ -500,6 +512,8 @@ class Map3DWidget(QWidget):
         self.place_start_target()
 
     def place_start_target(self) -> None:
+        """Places the target in its initial position with a
+        static state, before the game starts"""
         self.target_material.setDiffuse(QColor("white"))
         self.target_base_x = 14.0
         self.target_base_y = 2.8
@@ -519,6 +533,8 @@ class Map3DWidget(QWidget):
             )
 
     def reset_to_base_project(self) -> None:
+        """Resets the view to the base project state,
+        stopping any ongoing game,"""
         self.game_timer.stop()
         self.game_started = False
         self.score = 0
@@ -545,8 +561,10 @@ class Map3DWidget(QWidget):
         self.win_trigger.emit()
 
     def place_target(self) -> None:
+        """Places the target at a random position on the back wall and sets up
+        its random movement parameters for the Aim Lab mode"""
         self.target_material.setDiffuse(QColor("yellow"))
-        # Spawn uniquement sur la longueur (mur du fond)
+        # Spawn only on the length (back wall)
         self.target_base_x = random.uniform(2.0, 23.0)
         self.target_base_y = random.uniform(0.1, 1.8)
         self.target_base_z = 1.5
@@ -565,6 +583,9 @@ class Map3DWidget(QWidget):
             )
 
     def update_target_motion(self) -> None:
+        """Updates the target's position based on its movement parameters,
+        creating a random oscillation pattern on the back wall during the Aim
+        Lab game mode"""
         if not self.game_started or self.target_transform is None:
             return
 
@@ -593,6 +614,8 @@ class Map3DWidget(QWidget):
         )
 
     def on_target_clicked(self, pickEvent: Any) -> None:
+        """Handles the logic when the target is clicked: starts the game
+        if not"""
         if not self.game_started:
             self.game_started = True
             self.score = 0
@@ -600,11 +623,11 @@ class Map3DWidget(QWidget):
             self.game_timer.start(1000)
             self.place_target()
 
-            # Cacher le texte de depart
+            # Hide "Start the aimlab" text
             if hasattr(self, 'start_text_entity'):
                 self.start_text_entity.setEnabled(False)
 
-            # Afficher score + time pendant la session
+            # Display score + time during the session
             self.score_label_entity.setEnabled(True)
             self.time_label_entity.setEnabled(True)
             self.score_val_entity.setEnabled(True)
@@ -626,6 +649,9 @@ class Map3DWidget(QWidget):
         self.place_target()
 
     def update_game_timer(self) -> None:
+        """Updates the game timer every second, decreasing the time left and
+        ending the game when it reaches zero, while also updating the displayed
+        time value"""
         self.time_left -= 1
         if self.time_left <= 0:
             self.game_timer.stop()
@@ -658,21 +684,23 @@ class Map3DWidget(QWidget):
             self.time_val_mesh.setText(f"{self.time_left:02d}")
 
     def update_sensitivity(self, change: float) -> None:
-        """Met à jour la sensibilité suite à un clic bouton et rafraîchit
-        l'affichage 3D."""
+        """Updates the mouse sensitivity based on the button clicked, ensuring
+        it stays within a reasonable range, and updates the displayed
+        sensitivity value on the wall"""
         self.current_sens += change
 
-        # Sécurité pour ne pas avoir une sensibilité négative ou nulle
         if self.current_sens <= 0.01:
             self.current_sens = 0.01
 
-        # Applique la nouvelle valeur au contrôleur de souris
         self.sensitivity = self.current_sens
 
-        # Met à jour le texte du mesh (avec un formatage strict à 2 décimales)
-        self.sens_title_mesh.setText(f"Sensibilite: {self.current_sens:.2f}")
+        self.sens_title_mesh.setText(f"Sensibility: {self.current_sens:.2f}")
 
     def process_mouse(self) -> None:
+        """Processes mouse movement to update the camera's orientation based
+        on the mouse's position relative to the center of the screen, allowing
+        for smooth looking around in the 3D environment, while also ensuring
+        the cursor stays centered and the camera's pitch is clamped"""
         try:
             if not self.isVisible() or not self.mouse_captured:
                 return
@@ -705,6 +733,9 @@ class Map3DWidget(QWidget):
             pass
 
     def eventFilter(self, obj: Any, event: Any) -> bool:
+        """Overrides the eventFilter to handle key press and release events for
+        camera movement and game controls, allowing for toggling mouse
+        capture"""
         if event.type() == QEvent.Type.KeyPress:
             key_val = event.key() if isinstance(
                 event.key(), int) else event.key().value
@@ -738,6 +769,8 @@ class Map3DWidget(QWidget):
         return super().eventFilter(obj, event)
 
     def handle_key_press(self, key: Qt.Key) -> None:
+        """Handles key press events for movement and game controls, including
+        resetting the view and exiting the application"""
         if key == Qt.Key.Key_R or key == Qt.Key.Key_R.value:
             self.reset_to_base_project()
             return
@@ -751,6 +784,8 @@ class Map3DWidget(QWidget):
         self.keys_pressed.add(key)
 
     def handle_key_release(self, key: Qt.Key) -> None:
+        """Handles key release events to stop movement and handle
+        exit controls"""
         if key in self.keys_pressed:
             self.keys_pressed.remove(key)
         if key == Qt.Key.Key_Escape or key == Qt.Key.Key_Escape.value:
@@ -759,6 +794,10 @@ class Map3DWidget(QWidget):
             os._exit(0)
 
     def process_movement(self) -> None:
+        """Processes keyboard input to move the camera in the 3D environment
+        based on the keys pressed, allowing for movement in the direction the
+        camera is facing, while also implementing basic collision detection
+        with the walls of the map to prevent moving through them"""
         if self.camera is None:
             return
         self.update_target_motion()
@@ -838,16 +877,18 @@ class Map3DWidget(QWidget):
             self.camera.setViewCenter(view)
 
     def update_score_display(self, current_score: int) -> None:
-        """Met à jour le texte complet du score."""
+        """Updates the text of the score display to reflect the current score
+        """
         if hasattr(self, 'score_val_mesh'):
             self.score_val_mesh.setText(f"{current_score:02d}")
 
     def update_time_display(self, current_time: float) -> None:
-        """Met à jour le texte complet du temps."""
+        """Updates the text of the time display to reflect the current time"""
         if hasattr(self, 'time_val_mesh'):
             self.time_val_mesh.setText(f"{int(current_time):02d}")
 
     def update_best_score_display(self, best_score: int) -> None:
-        """Met à jour le texte complet du meilleur score."""
+        """Updates the text of the best score display to reflect the current
+        best score."""
         if hasattr(self, 'best_val_mesh'):
             self.best_val_mesh.setText(f"{best_score:02d}")

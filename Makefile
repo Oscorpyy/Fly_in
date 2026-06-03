@@ -6,7 +6,7 @@
 #    By: opernod <opernod@student.42lyon.fr>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/06/02 12:07:37 by opernod           #+#    #+#              #
-#    Updated: 2026/06/03 15:12:20 by opernod          ###   ########lyon.fr    #
+#    Updated: 2026/06/03 16:18:46 by opernod          ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -82,8 +82,8 @@ lint-strict:
 	@printf "$(COLOR_GREEN)✓ Strict verification completed$(COLOR_RESET)\n"
 
 test:
-	@printf "$(COLOR_CYAN)🧪 Map robustness test (t_04 to t_38)...$(COLOR_RESET)\n"
-	@for map in $$(seq -f "t_%02g" 4 38); do \
+	@printf "$(COLOR_CYAN)🧪 Map robustness test (test_04 to test_38)...$(COLOR_RESET)\n"
+	@for map in $$(seq -f "test_%02g" 4 38); do \
 		printf "Map $$map: "; \
 		QT_LOGGING_RULES="Qt3D.Renderer.RHI.Backend=false" uv run python sources/main.py $$map > /dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
