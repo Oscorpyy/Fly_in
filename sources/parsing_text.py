@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 from typing import Dict, Any, Set, Tuple
 from constant import Colors
 
@@ -14,14 +13,23 @@ VALID_ZONE_TYPES = {'normal', 'blocked', 'restricted', 'priority'}
 # Allowed keys inside connection brackets
 VALID_CONNECTION_ATTR_KEYS = {'max_link_capacity'}
 
-# Hub name: only alphanumeric + underscore, no dash, no hash, no spaces
-HUB_NAME_PATTERN = re.compile(r'^[A-Za-z0-9_]+$')
+# Hub name: any character except dash (breaks connection syntax) and
+# whitespace (breaks token splitting).  No other restriction.
+HUB_NAME_PATTERN = re.compile(r'^[^\s\-]+$')
+
+
+class MapParseError(ValueError):
+    """Raised when the map file contains a formatting or validation error.
+    The exception message already contains the full colored error string
+    so callers can display it directly (e.g. terminal_view.print_line(str(e))).
+    """
 
 
 def _error(line_num: int, msg: str) -> None:
-    """Print a formatted error message and exit."""
-    print(f"{Colors.RED}Error: Line {line_num}: {msg}{Colors.RESET}")
-    sys.exit(1)
+    """Format an error message and raise MapParseError."""
+    full_msg = f"{Colors.RED}Error: Line {line_num}: {msg}{Colors.RESET}"
+    print(full_msg)
+    raise MapParseError(full_msg)
 
 
 def _parse_attributes(attr_str: str, line_num: int,
@@ -91,12 +99,34 @@ def _parse_attributes(attr_str: str, line_num: int,
     return attributes
 
 
+def _strip_inline_comment(line: str) -> str:
+    """
+    Remove a trailing inline comment from a line.
+
+    A '#' starts a comment only when BOTH conditions hold:
+      1. It is outside any bracket pair '[...]'.
+      2. It is immediately preceded by a space.
+
+    This means '#' inside names or values (e.g. 'g#ate', 'r#ed') is
+    preserved untouched — those positions have no preceding space.
+    """
+    depth = 0
+    for i, c in enumerate(line):
+        if c == '[':
+            depth += 1
+        elif c == ']':
+            depth -= 1
+        elif c == '#' and depth == 0 and i > 0 and line[i - 1] == ' ':
+            return line[:i].rstrip()
+    return line
+
+
 def _validate_hub_name(name: str, line_num: int) -> None:
-    """Reject names that contain forbidden characters."""
+    """Reject names that contain a dash or whitespace (syntax breakers)."""
     if not HUB_NAME_PATTERN.match(name):
         _error(line_num,
-               f"Hub name '{name}' contains forbidden characters. "
-               "Only letters, digits, and underscores are allowed.")
+               f"Hub name '{name}' contains a forbidden character. "
+               "Dashes and spaces are not allowed in hub names.")
 
 
 def parse_map_text(filepath: str) -> Dict[str, Any]:
@@ -117,11 +147,13 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
     }
 
     if not os.path.exists(filepath):
-        print(f"Error (parsing text): File '{filepath}' not found.")
-        sys.exit(1)
+        msg = f"File '{filepath}' not found."
+        print(f"{Colors.RED}Error: {msg}{Colors.RESET}")
+        raise MapParseError(msg)
 
     # Validation state
     nb_drones_count = 0
+    first_directive_seen = False   # nb_drones must be the first directive
     start_hub_count = 0
     end_hub_count = 0
     seen_hubs: Set[str] = set()
@@ -138,12 +170,24 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                 if not line or line.startswith('#'):
                     continue
 
-                if '#' in line:
-                    _error(line_num,
-                           "Inline comments are not allowed. "
-                           "Move the '#' comment to its own line.")
+                # Strip any trailing inline comment (' #...') before parsing.
+                # A '#' is a comment delimiter only when it is outside
+                # brackets AND preceded by a space — meaning it is a
+                # standalone token, not glued to a name or value.
+                line = _strip_inline_comment(line)
+                if not line:
+                    continue  # entire content was a trailing comment
 
                 try:
+                    # nb_drones must be the very first real directive
+                    if not first_directive_seen and not line.startswith(
+                            'nb_drones:'):
+                        _error(line_num,
+                               "The first directive must be 'nb_drones:'. "
+                               f"Got '{line.split(':')[0]}' instead.")
+
+                    first_directive_seen = True
+
                     if line.startswith('nb_drones:'):
                         nb_drones_count += 1
                         if nb_drones_count > 1:
@@ -161,6 +205,9 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                         if nb_drones_val <= 0:
                             _error(line_num,
                                    "nb_drones must be a positive integer.")
+                        elif nb_drones_val > 200:
+                            _error(line_num, "To avoid excessive lag drone "
+                                   "capacity must be lower than 200.")
                         map_data['nb_drones'] = nb_drones_val
 
                     elif line.startswith(('hub:', 'start_hub:', 'end_hub:')):
@@ -337,34 +384,38 @@ def parse_map_text(filepath: str) -> Dict[str, Any]:
                         })
 
                     else:
-                        print(f"Warning: Line {line_num}: "
-                              f"Unknown directive -> '{line}'")
+                        _error(line_num,
+                               f"Unknown directive -> '{line}'")
 
-                except SystemExit:
+                except MapParseError:
                     raise
                 except Exception as e:
-                    print(f"Error: Line {line_num}: "
-                          f"Malformed line -> '{line}' ({e})")
-                    sys.exit(1)
+                    full_msg = (f"{Colors.RED}Error: Line {line_num}: "
+                                f"Malformed line -> '{line}' "
+                                f"({e}){Colors.RESET}")
+                    print(full_msg)
+                    raise MapParseError(full_msg)
 
         if nb_drones_count == 0:
-            print("Error: nb_drones not defined.")
-            sys.exit(1)
+            msg = "nb_drones not defined."
+            print(f"{Colors.RED}Error: {msg}{Colors.RESET}")
+            raise MapParseError(msg)
 
         if start_hub_count != 1:
-            print(f"Error: Expected exactly 1 start_hub, "
-                  f"found {start_hub_count}.")
-            sys.exit(1)
+            msg = f"Expected exactly 1 start_hub, found {start_hub_count}."
+            print(f"{Colors.RED}Error: {msg}{Colors.RESET}")
+            raise MapParseError(msg)
 
         if end_hub_count != 1:
-            print(f"Error: Expected exactly 1 end_hub, "
-                  f"found {end_hub_count}.")
-            sys.exit(1)
+            msg = f"Expected exactly 1 end_hub, found {end_hub_count}."
+            print(f"{Colors.RED}Error: {msg}{Colors.RESET}")
+            raise MapParseError(msg)
 
     except IOError as err:
-        print(f"Error reading file '{filepath}': {err}")
-        sys.exit(1)
-    except SystemExit:
+        msg = f"Error reading file '{filepath}': {err}"
+        print(f"{Colors.RED}{msg}{Colors.RESET}")
+        raise MapParseError(msg)
+    except MapParseError:
         raise
 
     return map_data

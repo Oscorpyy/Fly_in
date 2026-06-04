@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
 from PyQt6.QtWidgets import QLineEdit, QApplication, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
-from constant import Color
+from constant import Color, Colors
 import sys
 
 
@@ -528,7 +528,8 @@ class Terminal(QWidget):
             try:
                 sys.exit(0)
             except SystemExit:
-                print("Closing the graphical interface.")
+                print(f"{Colors.RED}Closing the graphical interface."
+                      f"{Colors.RESET}")
                 raise
 
         elif cmd_lower.startswith(('map=', 'map ', 'm=', 'm ')):
@@ -536,7 +537,6 @@ class Terminal(QWidget):
             parts = clean_cmd.split()
             if len(parts) >= 2:
                 map_name = parts[1].strip()
-                self.print_line(f"Chargement de la map '{map_name}'...")
                 self.command_emitted.emit(f'map={map_name}')
             else:
                 self.print_line("Erreur : nom de map manquant. "
@@ -609,7 +609,8 @@ class Terminal(QWidget):
             try:
                 sys.exit(0)
             except SystemExit:
-                print("Closing the graphical interface.")
+                print(f"{Colors.RED}Closing the graphical interface."
+                      f"{Colors.RESET}")
                 raise
 
         elif cmd_lower in ('close', 'hide', 'cl', 'hi'):

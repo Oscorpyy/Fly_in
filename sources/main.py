@@ -272,7 +272,7 @@ class DroneSimulationWindow(QMainWindow):
             self.terminal_view.randomize_colors()
 
     def load_new_map(self, map_name: str) -> None:
-        """Charge une nouvelle carte en remplaçant les vues actuelles."""
+        """Loads a new map based on the provided map name."""
         from parsing import get_map_path_from_arg
         resolved_path = get_map_path_from_arg(map_name)
 
@@ -282,13 +282,17 @@ class DroneSimulationWindow(QMainWindow):
                 self.terminal_view.print_line(f"Error: {map_name} not found.")
             return
 
-        if hasattr(self, 'terminal_view'):
-            self.terminal_view.print_line(
-                f"✅ Chargement réussi de '{resolved_path}'...")
-            self.terminal_view.toggle_visibility()
-
         # Parse the new map
-        new_map_data = parse_map_text(resolved_path)
+        try:
+            new_map_data = parse_map_text(resolved_path)
+        except Exception as e:
+            if hasattr(self, 'terminal_view'):
+                print(f"Error parsing map file '{resolved_path}': {e}")
+                self.terminal_view.print_line("Error parsing map file "
+                                              f"'{resolved_path}'.")
+            return
+        self.terminal_view.print_line(f"Loaded map: {map_name}")
+        self.terminal_view.toggle_visibility()
 
         # Rebuild the graph and pathfinding with the new map data
         graph = Graph()
