@@ -5,8 +5,10 @@ description = "Drones are interesting"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "pyperclip>=1.11.0",
     "pyqt6>=6.7.0,<6.8.0",
     "pyqt6-3d>=6.7.0,<6.8.0",
+    "types-pyperclip>=1.11.0.20260508",
 ]
 
 [dependency-groups]

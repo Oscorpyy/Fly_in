@@ -165,6 +165,8 @@ class DroneSimulationWindow(QMainWindow):
         elif cmd.startswith('map='):
             map_name = cmd[4:]
             self.load_new_map(map_name)
+        elif cmd.startswith('aimlab'):
+            self.trigger_blackout()
         elif cmd.startswith('color '):
             parts = cmd.split(' ')
             if len(parts) >= 3:

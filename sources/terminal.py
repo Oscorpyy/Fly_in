@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from constant import Color, Colors
 import sys
+import pyperclip
 
 
 class TerminalInput(QLineEdit):
@@ -42,7 +43,9 @@ class TerminalInput(QLineEdit):
             '(ex: color hub red)',
             'random color': 'Randomly modify all maze colors',
             'random color auto [sec]': 'Continuously modify colors '
-            'at set intervals (ex: random color auto 5)'
+            'at set intervals (ex: random color auto 5)',
+            'secret command': 'Try to find it...',
+            'hint': 'if you need a hint, for the secret command...'
         }
         self.tab_index: int = 0
         self.tab_matches: list[str] = []
@@ -274,6 +277,7 @@ class Terminal(QWidget):
     def __init__(self, parent: Any = None) -> None:
         super().__init__(parent)
         self.setVisible(False)
+        self.waiting_for_hint_answer: bool = False
 
         # Install a global event filter on the application
         app = QApplication.instance()
@@ -489,6 +493,16 @@ class Terminal(QWidget):
             command (str): The command to execute.
         """
         cmd_lower = command.lower()
+        if self.waiting_for_hint_answer:
+            self.waiting_for_hint_answer = False
+            if cmd_lower == '42':
+                self.print_line("Congratulations! You've found the secret "
+                                "command! Here's your reward:")
+                self.print_line('You know konami code ?')
+            else:
+                self.print_line("Wrong answer... Try 'hint' again if you "
+                                "dare.")
+            return
 
         if cmd_lower in ('quit', 'q'):
             self.toggle_visibility()
@@ -518,6 +532,9 @@ class Terminal(QWidget):
         elif cmd_lower in ('troll', 't'):
             self.print_line("Do search for the meaning of life, the universe "
                             "and everything... ")
+            self.print_line("You might be surprised by what's in "
+                            "the clipboard ;)")
+            pyperclip.copy("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
             self.command_emitted.emit('update')
 
             self.repaint()
@@ -526,7 +543,7 @@ class Terminal(QWidget):
             sleep(42)
 
             try:
-                sys.exit(0)
+                sys.exit(1)
             except SystemExit:
                 print(f"{Colors.RED}Closing the graphical interface."
                       f"{Colors.RESET}")
@@ -541,6 +558,15 @@ class Terminal(QWidget):
             else:
                 self.print_line("Erreur : nom de map manquant. "
                                 "Usage : map=Challenger_01")
+
+        elif cmd_lower in (('aimlab', 'a')):
+            self.print_line("Activating Aim Lab mode...")
+            self.command_emitted.emit('aimlab')
+            self.toggle_visibility()
+        elif cmd_lower == 'hint':
+            self.print_line("You need to deserve it ...")
+            self.print_line("So what is 6 * 7 ?")
+            self.waiting_for_hint_answer = True
 
         elif cmd_lower.startswith(('color ', 'color_', 'c ', 'c_')):
             clean_cmd = cmd_lower.replace('_', ' ').replace('=', ' ')
