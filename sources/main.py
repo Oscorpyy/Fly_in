@@ -292,7 +292,8 @@ class DroneSimulationWindow(QMainWindow):
                 self.terminal_view.print_line("Error parsing map file "
                                               f"'{resolved_path}'.")
             return
-        self.terminal_view.print_line(f"Loaded map: {map_name}")
+        self.terminal_view.print_line(f"Loaded map: {resolved_path.split(
+            '/')[-1]}")
         self.terminal_view.toggle_visibility()
 
         # Rebuild the graph and pathfinding with the new map data
