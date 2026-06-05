@@ -285,9 +285,8 @@ class DroneSimulationWindow(QMainWindow):
         # Parse the new map
         try:
             new_map_data = parse_map_text(resolved_path)
-        except Exception as e:
+        except Exception:
             if hasattr(self, 'terminal_view'):
-                print(f"Error parsing map file '{resolved_path}': {e}")
                 self.terminal_view.print_line("Error parsing map file "
                                               f"'{resolved_path}'.")
             return
@@ -574,4 +573,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    main()
+    try:
+        main()
+    except Exception:
+        pass

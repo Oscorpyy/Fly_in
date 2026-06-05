@@ -1,0 +1,16 @@
+D0-gate3
+D0-waiting_area3 D1-gate3
+D0-convergence D1-waiting_area3 D2-gate3
+D0-final_bottleneck D1-convergence D2-waiting_area3 D3-gate3
+D0-goal D1-final_bottleneck D2-convergence D3-waiting_area3 D4-gate3
+D1-goal D2-final_bottleneck D3-convergence D4-waiting_area3 D5-gate3
+D2-goal D3-final_bottleneck D4-convergence D5-waiting_area3 D6-gate3
+D3-goal D4-final_bottleneck D5-convergence D6-waiting_area3 D7-gate3
+D4-goal D5-final_bottleneck D6-convergence D7-waiting_area3 D8-gate3
+D5-goal D6-final_bottleneck D7-convergence D8-waiting_area3 D9-gate3
+D6-goal D7-final_bottleneck D8-convergence D9-waiting_area3 D10-gate3
+D7-goal D8-final_bottleneck D9-convergence D10-waiting_area3 D11-gate3
+D8-goal D9-final_bottleneck D10-convergence D11-waiting_area3
+D9-goal D10-final_bottleneck D11-convergence
+D10-goal D11-final_bottleneck
+D11-goal

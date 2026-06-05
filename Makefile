@@ -6,12 +6,12 @@
 #    By: opernod <opernod@student.42lyon.fr>        +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/06/02 12:07:37 by opernod           #+#    #+#              #
-#    Updated: 2026/06/03 16:18:46 by opernod          ###   ########lyon.fr    #
+#    Updated: 2026/06/05 12:26:44 by opernod          ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 SRC_DIR = sources
-MAP ?= challenger_02
+MAP ?= challenger_01
 
 # Colors
 COLOR_RESET = \033[0m

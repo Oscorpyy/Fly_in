@@ -22,9 +22,9 @@ class TerminalInput(QLineEdit):
         self.history_index: int = -1
         self.current_buffer: str = ""
 
-        # Command list for autocomplete and help
+        # Command list for autocomplete and man
         self.available_commands: dict[str, str] = {
-            'help': 'Display help message with list of available commands',
+            'man': 'Display the man message with list of available commands',
             'color help': 'Display list of zones that can be modified with '
             'the color command',
             'clear': 'Clear terminal display',
@@ -322,7 +322,7 @@ class Terminal(QWidget):
 
         self.print_line("Version 1.42.0 - Fly-In Command Terminal"
                         " Press 'Esc' to hide."
-                        " Type 'help' for help.")
+                        " Type 'man' for manuel.")
 
     def update_autocomplete(self, matches: list[str], index: int) -> None:
         """
@@ -497,7 +497,7 @@ class Terminal(QWidget):
             self.output_area.clear()
             self.print_line("Terminal clear.")
 
-        elif cmd_lower in ('help', 'h'):
+        elif cmd_lower in ('man', 'm'):
             self.print_line("--- COMMANDS AVAILABLE ---")
             for cmd_name, cmd_desc in self.available_commands.items():
                 self.print_line(f" - {cmd_name.ljust(23)} : {cmd_desc}")
